@@ -1,0 +1,38 @@
+<Window x:Class="StandupReminder.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Standup Reminder - Session Monitor"
+        Height="500"
+        Width="860"
+        MinHeight="420"
+        MinWidth="680">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock FontSize="22"
+                   FontWeight="SemiBold"
+                   Text="Windows Session Event Monitor" />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,8,0,12"
+                   Foreground="#4B5563"
+                   Text="Tracking native WM_WTSSESSION_CHANGE events: lock, unlock, and logon." />
+
+        <Border Grid.Row="2"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="8">
+            <ListBox ItemsSource="{Binding EventLog}"
+                     FontFamily="Consolas"
+                     FontSize="13" />
+        </Border>
+    </Grid>
+</Window>
