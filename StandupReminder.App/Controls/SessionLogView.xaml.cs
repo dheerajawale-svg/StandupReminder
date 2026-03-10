@@ -4,7 +4,7 @@ using System.Windows.Controls;
 
 namespace StandupReminder.App.Controls;
 
-public partial class SessionLogView : UserControl
+public partial class SessionLogView : System.Windows.Controls.UserControl
 {
     public static readonly DependencyProperty EventLogProperty =
         DependencyProperty.Register(

@@ -28,20 +28,105 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
             <TextBlock FontSize="24"
                        FontWeight="SemiBold"
-                       Text="Windows Session Event Monitor" />
+                       Text="Standup Reminder Dashboard" />
 
             <TextBlock Grid.Row="1"
                        Margin="0,8,0,12"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Text="Tracking native WM_WTSSESSION_CHANGE events: lock, unlock, and logon." />
+                       Text="The app runs from the system tray, alternates sitting and standing intervals, and pauses while the session is locked." />
 
-            <controls:SessionLogView Grid.Row="2"
-                                     EventLog="{Binding EventLog}" />
+            <Grid Grid.Row="2" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Padding="16"
+                        Margin="0,0,12,0"
+                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock FontSize="14"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="Current Phase" />
+                        <TextBlock Margin="0,6,0,4"
+                                   FontSize="28"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding CurrentPhaseTitle}" />
+                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="{Binding CurrentPhaseDescription}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Padding="16"
+                        Margin="0,0,12,0"
+                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock FontSize="14"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="Remaining Time" />
+                        <TextBlock Margin="0,6,0,0"
+                                   FontSize="24"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding RemainingTimeText}" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2"
+                        Padding="16"
+                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                    <StackPanel>
+                        <TextBlock FontSize="14"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="Session Status" />
+                        <TextBlock Margin="0,6,0,4"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding PauseStateText}" />
+                        <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="{Binding TrayHintText}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Margin="0,0,8,0">
+                    <TextBlock Margin="0,0,0,8"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Text="Reminder Transitions" />
+                    <controls:SessionLogView EventLog="{Binding TransitionLog}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                    <TextBlock Margin="0,0,0,8"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Text="Windows Session Events" />
+                    <controls:SessionLogView EventLog="{Binding EventLog}" />
+                </StackPanel>
+            </Grid>
         </Grid>
     </Grid>
 </ui:FluentWindow>
