@@ -1,75 +1,134 @@
 # Session Context Summary
 
 ## User Goals & Intent
-- Build a .NET WPF Windows 11 desktop app in `C:\personal\StandupReminder` that detects Windows wake/unlock/logon-related return events.
-- Use official guidance (MS Learn / Context7) to choose reliable native event detection.
-- Implement, then iteratively simplify and improve the app:
+- Build a .NET WPF Windows 11 desktop app in `C:\personal\StandupReminder` that detects Windows sign-in return events and runs as a tray-based stand-up reminder.
+- Use official guidance (MS Learn / Context7 where relevant) to choose reliable native Windows session event detection.
+- Iteratively simplify and improve the app:
 - Remove custom log-on UI and keep only lock/unlock/logon detection.
 - Refactor to MVVM for readability without changing behavior.
 - Add `.gitignore`.
-- Modernize UI using `WPF-UI` package.
+- Modernize UI using `WPF-UI`.
 - Apply dark/system theme behavior.
+- Package the app with an Inno Setup installer.
+- Make auto-start compatible with the default Windows Startup Apps experience so users/admins can disable startup there without the app re-enabling itself.
+- Reduce the sit timer from 60 minutes to 2 minutes for faster debug testing in Visual Studio.
 
 ## Key Technical Context
-- Event detection approach selected from official docs:
+- Event detection approach selected from official Windows guidance:
 - `WM_WTSSESSION_CHANGE` + `WTSRegisterSessionNotification` for session state events.
 - `WM_POWERBROADCAST` was initially implemented for wake context, later removed when scope was narrowed.
-- Final functional scope:
-- Detect and log `WTS_SESSION_LOCK (0x7)`, `WTS_SESSION_UNLOCK (0x8)`, `WTS_SESSION_LOGON (0x5)`.
+- Current functional scope:
+- Detect and log `WTS_SESSION_LOCK (0x7)`, `WTS_SESSION_UNLOCK (0x8)`, and `WTS_SESSION_LOGON (0x5)`.
+- Run a tray-first reminder loop with:
+- sitting countdown,
+- blocking stand-up confirmation window,
+- standing countdown,
+- pause/resume on lock/unlock.
 - WPF message hook mechanism:
 - `HwndSource.AddHook(...)` in `MainWindow` code-behind.
 - MVVM refactor:
 - Logging/state moved to `MainWindowViewModel`.
-- Code-behind now primarily handles Win32 registration and message routing.
+- Code-behind primarily handles Win32 registration and message routing.
 - UI modernization:
-- Migrated window to `Wpf.Ui.Controls.FluentWindow`.
-- Added `ui:ThemesDictionary` + `ui:ControlsDictionary` in `App.xaml`.
-- Added system theme sync APIs from `Wpf.Ui.Appearance`.
+- `MainWindow` migrated to `Wpf.Ui.Controls.FluentWindow`.
+- `App.xaml` includes `ui:ThemesDictionary` and `ui:ControlsDictionary`.
+- `App.xaml.cs` applies the system theme at startup via `ApplicationThemeManager.ApplySystemTheme()`.
+- `MainWindow.xaml.cs` enables runtime theme tracking via `SystemThemeWatcher.Watch(this)`.
+- Auto-start design changed during installer work:
+- The app no longer calls the registry auto-start service on every launch.
+- Auto-start registration is now intended to be handled by the installer, not by runtime bootstrap.
+- `IAutoStartRegistrationService` was reshaped from `EnsureRegistered()` to explicit methods: `IsRegistered()`, `Register()`, and `Unregister()`.
+- The stable startup value name remains `StandupReminder` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+- Reminder timing defaults currently set for debug:
+- `InitialSit = 2 minutes`
+- `RecurringSit = 2 minutes`
+- `Stand = 20 minutes`
 
 ## Environment & Configuration Details
 - Workspace: `C:\personal\StandupReminder`
 - OS/Shell context: Windows PowerShell
-- Session date context: 2026-03-07
-- .NET SDK detected: `10.0.103`
-- Solution/project created:
+- Current session date context for this summary update: `2026-03-10`
+- Earlier project setup session date context recorded in the repo: `2026-03-07`
+- .NET SDK detected during prior setup: `10.0.103`
+- Solution/project:
 - `C:\personal\StandupReminder\StandupReminder.slnx`
 - `C:\personal\StandupReminder\StandupReminder.App\StandupReminder.App.csproj`
-- Project target: `net8.0-windows`
-- NuGet package (final): `WPF-UI` version `4.2.0`
+- Project target framework: `net8.0-windows`
+- NuGet package in use: `WPF-UI` version `4.2.0`
 - Removed legacy package reference path (`WPF.UI 3.4.2.7`) after compatibility warning `NU1701`.
+- Packaging/publish configuration added:
+- Publish profile: `C:\personal\StandupReminder\StandupReminder.App\Properties\PublishProfiles\FolderProfile.pubxml`
+- Publish target: self-contained `win-x64`
+- Publish output path: `C:\personal\StandupReminder\artifacts\publish\StandupReminder\`
+- Installer configuration added:
+- Inno Setup script: `C:\personal\StandupReminder\Installer\StandupReminder.iss`
+- Installer output path: `C:\personal\StandupReminder\artifacts\installer\StandupReminder-Setup.exe`
+- Installer characteristics:
+- per-user install,
+- install path under `%LocalAppData%\Programs\StandupReminder`,
+- Start Menu shortcut,
+- optional desktop shortcut,
+- writes `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\StandupReminder`,
+- removes that value on uninstall.
 
 ## Discussion Highlights
-- Initial scaffold attempts hit sandbox/permission restrictions for `dotnet new` and `dotnet build`; resolved via approved escalation.
-- Implemented initial version with both power and session messages plus custom `LogOnWindow`.
+- Initial scaffold/build work hit sandbox or permission restrictions for some `dotnet` operations; those were resolved through approved escalation where needed.
+- Implemented an initial version with both power and session messages plus a custom log-on window.
 - On user request, removed all custom log-on UI files and logic.
 - Refactored to MVVM:
-- Added `ViewModels\MainWindowViewModel.cs`.
-- Bound `ListBox` to `EventLog` via `DataContext`.
-- Added repository-level `.gitignore` for `.NET`/VS artifacts (`bin/`, `obj/`, `.vs/`, etc.).
-- Integrated WPF-UI and modern styling:
-- `MainWindow.xaml` switched to `ui:FluentWindow` with `WindowBackdropType="Mica"`, rounded corners, title bar control, Fluent brushes.
-- Theme updates:
-- `App.xaml` default dictionary set to dark.
-- `App.xaml.cs` applies system theme at startup via `ApplicationThemeManager.ApplySystemTheme()`.
-- `MainWindow.xaml.cs` enables runtime theme tracking via `SystemThemeWatcher.Watch(this)`.
+- added `ViewModels\MainWindowViewModel.cs`,
+- bound the main UI log to `EventLog`,
+- kept Win32/session handling in code-behind.
+- Added repository-level `.gitignore` for `.NET`/Visual Studio artifacts and later expanded it to ignore generated installer/publish `artifacts/`.
+- Integrated WPF-UI and applied modern Fluent styling and system theme sync.
+- Added installer support:
+- created a deterministic self-contained publish profile,
+- created an Inno Setup script,
+- compiled the installer successfully with local `ISCC.exe`.
+- During installer work, identified a behavior conflict:
+- the app’s previous runtime call to auto-register itself at startup would have broken Windows Startup Apps disable behavior by potentially re-enabling itself after manual launch.
+- Resolved that by removing the unconditional runtime registration call from `App.xaml.cs`.
+- Before installer testing, explicitly removed an existing stale startup registry value:
+- `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\StandupReminder`
+- previous value pointed to an older debug build EXE.
+- Manual installed-app test result:
+- user reported the installed app ran until the reminder timer stage and then stopped working/crashed without showing notifications.
+- The user chose to stop installed-app debugging for now and continue debugging from Visual Studio instead.
+- For faster local debugging, changed the sit interval defaults from 60 minutes to 2 minutes and rebuilt successfully.
 
 ## Issues, Assumptions & Open Questions
-- Issue encountered: package name confusion between `Wpf.Ui` (legacy 3.x package identity surfaced as `WPF.UI`) and official `WPF-UI` 4.x.
-- Resolution: removed old package and retained `WPF-UI` `4.2.0` only.
-- Assumption: current app should continue monitoring only current session (`NOTIFY_FOR_THIS_SESSION = 0`).
-- Open question: whether to support all sessions (`NOTIFY_FOR_ALL_SESSIONS`) or keep current-session-only behavior.
-- Open question: whether to persist logs to file (currently in-memory only).
+- Resolved issue: package identity confusion between legacy `Wpf.Ui`/`WPF.UI` 3.x and official `WPF-UI` 4.x. Final package is `WPF-UI` `4.2.0`.
+- Assumption: session monitoring remains scoped to the current session (`NOTIFY_FOR_THIS_SESSION = 0`), not all sessions.
+- Assumption: Windows Startup Apps should remain the source of truth for whether startup is enabled or disabled.
+- Assumption: the app must not write to `StartupApproved` keys and must not silently recreate the `Run` value on normal launch.
+- Current known issue for future debugging:
+- the installed build reportedly crashes or stops before showing reminder notifications during a manual end-to-end test.
+- Open question: root cause of the installed-app crash, especially around reminder prompt/notification behavior outside the VS debug environment.
+- Open question: whether to support all sessions (`NOTIFY_FOR_ALL_SESSIONS`) instead of current-session-only behavior.
+- Open question: whether to persist logs to file instead of only in-memory collections.
+- Open question: whether the 2-minute sit timer should remain only as a temporary debug setting or be moved behind a debug/development configuration.
 
 ## References & Contextual Notes
-- Files currently central to implementation:
+- Files central to the current implementation:
+- `C:\personal\StandupReminder\StandupReminder.App\App.xaml`
+- `C:\personal\StandupReminder\StandupReminder.App\App.xaml.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\MainWindow.xaml`
 - `C:\personal\StandupReminder\StandupReminder.App\MainWindow.xaml.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\ViewModels\MainWindowViewModel.cs`
-- `C:\personal\StandupReminder\StandupReminder.App\App.xaml`
-- `C:\personal\StandupReminder\StandupReminder.App\App.xaml.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\PostureReminderScheduler.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\RegistryAutoStartRegistrationService.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\IAutoStartRegistrationService.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Models\ReminderScheduleOptions.cs`
+- Packaging-related files:
+- `C:\personal\StandupReminder\StandupReminder.App\Properties\PublishProfiles\FolderProfile.pubxml`
+- `C:\personal\StandupReminder\Installer\StandupReminder.iss`
 - `C:\personal\StandupReminder\.gitignore`
-- Build verification in this session:
-- `dotnet build StandupReminder.slnx` succeeded after each major refactor/integration step.
-- External references used in-session:
-- MS Learn: `WM_WTSSESSION_CHANGE`, `WTSRegisterSessionNotification`, `WM_POWERBROADCAST`, `SystemEvents.SessionSwitch`, `SystemEvents.PowerModeChanged`.
-- Context7: `/lepoco/wpfui` docs (themes, `FluentWindow`, `ApplicationThemeManager`, `SystemThemeWatcher`).
+- Build/publish/install verification performed across sessions:
+- `dotnet build StandupReminder.slnx` succeeded after major refactors and after the 2-minute debug timer change.
+- `dotnet publish StandupReminder.App\StandupReminder.App.csproj -c Release -p:PublishProfile=FolderProfile` succeeded.
+- `C:\Program Files (x86)\Inno Setup 6\ISCC.exe C:\personal\StandupReminder\Installer\StandupReminder.iss` succeeded.
+- Output artifact produced:
+- `C:\personal\StandupReminder\artifacts\installer\StandupReminder-Setup.exe`
+- External references used during the project:
+- Microsoft Learn: `WM_WTSSESSION_CHANGE`, `WTSRegisterSessionNotification`, `WM_POWERBROADCAST`, `SystemEvents.SessionSwitch`, `SystemEvents.PowerModeChanged`, `Run and RunOnce Registry Keys`, and Windows startup-app guidance.
+- Context7: `/lepoco/wpfui` docs for themes, `FluentWindow`, `ApplicationThemeManager`, and `SystemThemeWatcher`.
