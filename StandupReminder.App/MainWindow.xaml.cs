@@ -1,7 +1,6 @@
 using System;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
+using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -10,18 +9,13 @@ namespace StandupReminder.App;
 
 public partial class MainWindow : FluentWindow
 {
-    private const int WM_WTSSESSION_CHANGE = 0x02B1;
-
     private const int WTS_SESSION_LOGON = 0x0005;
     private const int WTS_SESSION_LOCK = 0x0007;
     private const int WTS_SESSION_UNLOCK = 0x0008;
 
-    private const uint NOTIFY_FOR_THIS_SESSION = 0;
-
     private readonly MainWindowViewModel _viewModel;
 
-    private HwndSource? _hwndSource;
-    private bool _sessionNotificationRegistered;
+    private WindowsSessionEventMonitor? _sessionMonitor;
 
     public MainWindow()
     {
@@ -36,89 +30,69 @@ public partial class MainWindow : FluentWindow
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
-        if (PresentationSource.FromVisual(this) is not HwndSource source)
-        {
-            _viewModel.LogHwndSourceInitializationFailed();
-            return;
-        }
-
-        _hwndSource = source;
-        _hwndSource.AddHook(WindowMessageHook);
-
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero)
-        {
-            _viewModel.LogWindowHandleUnavailable();
-            return;
-        }
-
-        if (!WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION))
-        {
-            var errorCode = Marshal.GetLastWin32Error();
-            _viewModel.LogWtsRegistrationFailed(errorCode);
-            return;
-        }
-
-        _sessionNotificationRegistered = true;
-        _viewModel.LogSessionNotificationListening();
+        _sessionMonitor = CreateSessionEventMonitor(this, _viewModel);
     }
 
     private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (_hwndSource is not null)
-        {
-            _hwndSource.RemoveHook(WindowMessageHook);
-            _hwndSource = null;
-        }
+        _ = sender;
+        _ = e;
 
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (_sessionNotificationRegistered && hwnd != IntPtr.Zero)
-        {
-            WTSUnRegisterSessionNotification(hwnd);
-            _sessionNotificationRegistered = false;
-        }
+        _sessionMonitor?.Dispose();
+        _sessionMonitor = null;
     }
 
-    private IntPtr WindowMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    // Static entry point requested for wiring session detection into MainWindow.
+    private static WindowsSessionEventMonitor CreateSessionEventMonitor(Window window, MainWindowViewModel viewModel)
     {
-        _ = hwnd;
-        _ = handled;
-
-        if (msg == WM_WTSSESSION_CHANGE)
-        {
-            HandleSessionChange(wParam.ToInt32(), lParam.ToInt32());
-        }
-
-        return IntPtr.Zero;
+        return WindowsSessionEventMonitor.Attach(
+            window,
+            onSessionChanged: (sessionEvent, sessionId) => LogSessionEvent(viewModel, sessionEvent, sessionId),
+            onLifecycleChanged: lifecycleEvent => LogMonitorLifecycleEvent(viewModel, lifecycleEvent)
+        );
     }
 
-    private void HandleSessionChange(int sessionEvent, int sessionId)
+    private static void LogSessionEvent(MainWindowViewModel viewModel, int sessionEvent, int sessionId)
     {
         switch (sessionEvent)
         {
             case WTS_SESSION_LOCK:
-                _viewModel.LogSessionLock(sessionId);
+                viewModel.LogSessionLock(sessionId);
                 break;
 
             case WTS_SESSION_UNLOCK:
-                _viewModel.LogSessionUnlock(sessionId);
+                viewModel.LogSessionUnlock(sessionId);
                 break;
 
             case WTS_SESSION_LOGON:
-                _viewModel.LogSessionLogon(sessionId);
+                viewModel.LogSessionLogon(sessionId);
                 break;
 
             default:
-                _viewModel.LogUnknownSessionEvent(sessionEvent, sessionId);
+                viewModel.LogUnknownSessionEvent(sessionEvent, sessionId);
                 break;
         }
     }
 
-    [DllImport("wtsapi32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool WTSRegisterSessionNotification(IntPtr hWnd, uint dwFlags);
+    private static void LogMonitorLifecycleEvent(MainWindowViewModel viewModel, SessionMonitorLifecycleEvent lifecycleEvent)
+    {
+        switch (lifecycleEvent.Type)
+        {
+            case SessionMonitorLifecycleEventType.HwndSourceUnavailable:
+                viewModel.LogHwndSourceInitializationFailed();
+                break;
 
-    [DllImport("wtsapi32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool WTSUnRegisterSessionNotification(IntPtr hWnd);
+            case SessionMonitorLifecycleEventType.WindowHandleUnavailable:
+                viewModel.LogWindowHandleUnavailable();
+                break;
+
+            case SessionMonitorLifecycleEventType.RegistrationFailed:
+                viewModel.LogWtsRegistrationFailed(lifecycleEvent.Win32Error ?? -1);
+                break;
+
+            case SessionMonitorLifecycleEventType.ListeningStarted:
+                viewModel.LogSessionNotificationListening();
+                break;
+        }
+    }
 }

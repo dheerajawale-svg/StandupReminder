@@ -3,6 +3,7 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:controls="clr-namespace:StandupReminder.App.Controls"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  mc:Ignorable="d"
                  Title="Standup Reminder"
@@ -39,18 +40,8 @@
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                        Text="Tracking native WM_WTSSESSION_CHANGE events: lock, unlock, and logon." />
 
-            <Border Grid.Row="2"
-                    Padding="10"
-                    BorderThickness="1"
-                    CornerRadius="10"
-                    Background="{DynamicResource ControlFillColorDefaultBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-                <ListBox ItemsSource="{Binding EventLog}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         FontFamily="Consolas"
-                         FontSize="13" />
-            </Border>
+            <controls:SessionLogView Grid.Row="2"
+                                     EventLog="{Binding EventLog}" />
         </Grid>
     </Grid>
 </ui:FluentWindow>
