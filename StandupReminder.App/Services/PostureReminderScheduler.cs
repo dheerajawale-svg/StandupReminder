@@ -5,6 +5,8 @@ namespace StandupReminder.App.Services;
 
 public sealed class PostureReminderScheduler : IPostureReminderScheduler
 {
+    private static readonly TimeSpan SnoozeDuration = TimeSpan.FromMinutes(5);
+
     private ReminderScheduleOptions _options;
     private readonly ITrayService _trayService;
     private readonly DispatcherTimer _timer;
@@ -80,6 +82,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         switch (_phase)
         {
             case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
             case ReminderPhase.StandingCountdown:
                 CaptureRemainingTime();
                 _timer.Stop();
@@ -105,6 +108,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         switch (_phaseBeforePause)
         {
             case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
             case ReminderPhase.StandingCountdown:
                 _phase = _phaseBeforePause;
                 _phaseEndsAt = DateTimeOffset.Now + _remainingTime;
@@ -147,6 +151,12 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         StartCountdown(_options.Stand);
     }
 
+    private void BeginSnoozedCountdown()
+    {
+        _phase = ReminderPhase.SnoozedCountdown;
+        StartCountdown(SnoozeDuration);
+    }
+
     private void StartCountdown(TimeSpan duration)
     {
         _remainingTime = duration;
@@ -160,7 +170,9 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         _ = sender;
         _ = e;
 
-        if (_phase is not ReminderPhase.SittingCountdown and not ReminderPhase.StandingCountdown)
+        if (_phase is not ReminderPhase.SittingCountdown
+            and not ReminderPhase.SnoozedCountdown
+            and not ReminderPhase.StandingCountdown)
         {
             return;
         }
@@ -181,6 +193,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         switch (_phase)
         {
             case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
                 _phase = ReminderPhase.StandPromptPending;
                 _remainingTime = TimeSpan.Zero;
                 RaiseStateChanged();
@@ -204,6 +217,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
         _promptWindow = new StandUpReminderWindow(_options.Stand);
         _promptWindow.Confirmed += OnPromptConfirmed;
+        _promptWindow.Snoozed += OnPromptSnoozed;
         _promptWindow.Closed += OnPromptClosed;
         _promptWindow.Show();
         _promptWindow.Activate();
@@ -238,6 +252,15 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
         _promptWindow = null;
         BeginStandingCountdown();
+    }
+
+    private void OnPromptSnoozed(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        _promptWindow = null;
+        BeginSnoozedCountdown();
     }
 
     private void OnPromptClosed(object? sender, EventArgs e)

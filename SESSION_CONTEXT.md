@@ -6,6 +6,7 @@
 - Modernize the UI with `WPF-UI`, theme sync, branded app icons, and installer support.
 - Add user-configurable reminder intervals through a settings window and persist them across restarts.
 - Preserve Windows session event history across app restarts while limiting the visible history to the last 48 hours.
+- Add a `Snooze` option to the stand-up reminder prompt so the user can defer the prompt briefly instead of only confirming immediately.
 
 ## Key Technical Context
 - Session detection uses `WM_WTSSESSION_CHANGE` with `WTSRegisterSessionNotification`.
@@ -16,13 +17,14 @@
 - The reminder loop behavior is:
 - initial sitting countdown
 - blocking stand-up confirmation window
+- optional `5 minute` snooze countdown that re-shows the stand-up prompt
 - standing countdown
 - informational sit notification
 - pause/resume across lock/unlock
 - `MainWindow` is a `Wpf.Ui.Controls.FluentWindow` and uses `SystemThemeWatcher.Watch(this)` for runtime theme tracking.
 - `StandUpReminderWindow` is also a `FluentWindow`; a crash caused by `WindowBackdropType="Acrylic"` without `ExtendsContentIntoTitleBar="True"` was fixed by enabling title-bar extension.
 - App branding now uses `StandupReminder.App\Assets\reminder_17382582.ico` and `StandupReminder.App\Assets\reminder_17382582.png`.
-- The executable icon is embedded through `ApplicationIcon`, the windows use the icon in XAML, the tray icon loads the executable’s associated icon, and the Inno Setup installer uses the same `.ico` as `SetupIconFile`.
+- The executable icon is embedded through `ApplicationIcon`, the windows use the icon in XAML, the tray icon loads the executable's associated icon, and the Inno Setup installer uses the same `.ico` as `SetupIconFile`.
 - Reminder intervals are configurable through a new WPF-UI `SettingsWindow` opened from the tray icon context menu.
 - Settings persistence is per-user in `%LocalAppData%\StandupReminder\settings.json` via `LocalAppDataReminderSettingsStore`.
 - Persisted settings are stored as integer minute values, not raw `TimeSpan` JSON.
@@ -32,6 +34,8 @@
 - `InitialSit = 60 minutes`
 - `RecurringSit = 50 minutes`
 - `Stand = 20 minutes`
+- The stand-up reminder now includes a fixed `5 minute` snooze path implemented in the scheduler, without adding a persisted setting.
+- `ReminderPhase` now includes `SnoozedCountdown` so the dashboard and tray status can distinguish a deferred stand-up reminder from the normal sitting interval.
 - The main window no longer shows a separate `Reminder Transitions` panel.
 - Windows session events are now persisted per user in `%LocalAppData%\StandupReminder\session-events.json` via `LocalAppDataSessionEventLogStore`.
 - The dashboard shows only the Windows session event feed, trimmed to the last 48 hours and preserved across app restarts.
@@ -82,17 +86,25 @@
 - The Windows session events feed was upgraded from in-memory-only logging to persisted per-user history with 48-hour retention.
 - The old transition-log panel and its scheduler log event contract were removed from the dashboard.
 - `dotnet build StandupReminder.slnx` succeeded after the icon changes, settings implementation, and 48-hour session-history persistence work.
+- The stand-up reminder flow was extended with a second prompt action:
+- `I stood up` still starts the standing countdown
+- `Snooze 5 min` closes the prompt and starts a dedicated snooze countdown
+- The scheduler was updated so snoozed reminders pause/resume correctly across lock/unlock and re-open the stand-up prompt when the snooze countdown expires.
+- The reminder prompt copy and layout were updated to surface the snooze option while keeping `I stood up` as the primary action.
+- `dotnet build StandupReminder.slnx` succeeded after the snooze implementation changes.
 
 ## Issues, Assumptions & Open Questions
 - Resolved issue: legacy `Wpf.Ui`/`WPF.UI` package confusion. The active package remains `WPF-UI` `4.2.0`.
 - Resolved issue: reminder prompt window backdrop/title-bar mismatch causing `InvalidOperationException`.
 - Assumption: session monitoring remains scoped to the current session (`NOTIFY_FOR_THIS_SESSION = 0`), not all sessions.
 - Assumption: startup enable/disable should continue to be controlled by Windows Startup Apps and installer-managed `HKCU\...\Run`.
-- Assumption: reminder settings are intentionally per-user in `LocalAppData`, matching the tray app’s current user-scoped behavior.
+- Assumption: reminder settings are intentionally per-user in `LocalAppData`, matching the tray app's current user-scoped behavior.
 - Assumption: settings changes should not reset an active countdown; they apply on the next applicable phase transition.
+- Assumption: snooze is intentionally a fixed non-configurable `5 minute` delay and does not change `settings.json` or `ReminderScheduleOptions`.
 - Current known issue for future debugging:
 - the installed build was previously reported to stop or crash around the reminder stage during a manual installed-app test
 - the exact root cause in the installed/non-VS scenario remains unconfirmed after the later reminder-window fix
+- Open question: manual end-to-end verification of the new snooze flow is still pending for prompt display, snooze expiry, and lock/unlock resume behavior.
 - Open question: whether the current `2 minute` defaults should remain a debug-only choice or be moved behind an explicit development configuration.
 - Open question: whether to support all sessions (`NOTIFY_FOR_ALL_SESSIONS`) instead of current-session-only registration.
 
@@ -109,10 +121,12 @@
 - `C:\personal\StandupReminder\StandupReminder.App\Services\PostureReminderScheduler.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\LocalAppDataReminderSettingsStore.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\LocalAppDataSessionEventLogStore.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Models\ReminderPhase.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Models\ReminderScheduleOptions.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Models\SessionEventLogEntry.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\NotifyIconTrayService.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\StandUpReminderWindow.xaml`
+- `C:\personal\StandupReminder\StandupReminder.App\StandUpReminderWindow.xaml.cs`
 - Packaging-related files:
 - `C:\personal\StandupReminder\StandupReminder.App\Properties\PublishProfiles\FolderProfile.pubxml`
 - `C:\personal\StandupReminder\Installer\StandupReminder.iss`
@@ -122,6 +136,7 @@
 - `dotnet publish StandupReminder.App\StandupReminder.App.csproj -c Release -p:PublishProfile=FolderProfile` succeeded
 - `C:\Program Files (x86)\Inno Setup 6\ISCC.exe C:\personal\StandupReminder\Installer\StandupReminder.iss` succeeded
 - `dotnet build StandupReminder.slnx` also succeeded after the icon, settings, and persisted session-event-history changes
+- `dotnet build StandupReminder.slnx` succeeded after adding the stand-up snooze flow and `SnoozedCountdown` state
 - Output artifact produced:
 - `C:\personal\StandupReminder\artifacts\installer\StandupReminder-Setup.exe`
 - External references used during the project:

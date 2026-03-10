@@ -136,9 +136,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             case ReminderPhase.StandPromptPending:
                 CurrentPhaseTitle = "Stand-Up Confirmation";
-                CurrentPhaseDescription = "A blocking reminder is waiting for you to confirm that you stood up.";
+                CurrentPhaseDescription = "A blocking reminder is waiting for you to confirm that you stood up or snooze for 5 minutes.";
                 PauseStateText = "Awaiting confirmation";
-                TrayHintText = "The stand-up popup cannot be dismissed until you confirm.";
+                TrayHintText = "The stand-up popup stays on screen until you confirm or snooze it.";
+                break;
+
+            case ReminderPhase.SnoozedCountdown:
+                CurrentPhaseTitle = "Snoozed";
+                CurrentPhaseDescription = "The stand-up reminder was deferred for 5 minutes and will reappear when the snooze countdown ends.";
+                PauseStateText = "Snoozed";
+                TrayHintText = "The reminder loop is still active and will prompt you again after the snooze interval.";
                 break;
 
             case ReminderPhase.StandingCountdown:

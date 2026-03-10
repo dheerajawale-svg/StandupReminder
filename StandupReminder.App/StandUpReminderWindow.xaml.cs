@@ -10,6 +10,7 @@ public partial class StandUpReminderWindow : FluentWindow
     private bool _allowClose;
 
     public event EventHandler? Confirmed;
+    public event EventHandler? Snoozed;
 
     public StandUpReminderWindow(TimeSpan standDuration)
     {
@@ -43,6 +44,16 @@ public partial class StandUpReminderWindow : FluentWindow
 
         _allowClose = true;
         Confirmed?.Invoke(this, EventArgs.Empty);
+        Close();
+    }
+
+    private void OnSnoozeClicked(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        _allowClose = true;
+        Snoozed?.Invoke(this, EventArgs.Empty);
         Close();
     }
 

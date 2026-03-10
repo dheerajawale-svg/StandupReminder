@@ -154,6 +154,7 @@ public partial class App : System.Windows.Application
             ReminderPhase.SittingCountdown => "Sitting",
             ReminderPhase.StandingCountdown => "Standing",
             ReminderPhase.StandPromptPending => "Stand-up confirmation",
+            ReminderPhase.SnoozedCountdown => "Snoozed",
             ReminderPhase.PausedForLock => "Paused for lock",
             _ => "Starting"
         };
