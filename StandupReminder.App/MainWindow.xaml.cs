@@ -3,10 +3,12 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using StandupReminder.App.ViewModels;
+using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 
 namespace StandupReminder.App;
 
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     private const int WM_WTSSESSION_CHANGE = 0x02B1;
 
@@ -23,6 +25,7 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        SystemThemeWatcher.Watch(this);
         InitializeComponent();
         _viewModel = new MainWindowViewModel();
         DataContext = _viewModel;
