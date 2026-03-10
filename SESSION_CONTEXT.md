@@ -29,9 +29,9 @@
 - Saved reminder settings apply on the next interval boundary; they do not reset the currently active countdown.
 - `IPostureReminderScheduler` now supports runtime configuration updates through `UpdateOptions(ReminderScheduleOptions options)`.
 - Current reminder defaults in code are:
-- `InitialSit = 2 minutes`
-- `RecurringSit = 2 minutes`
-- `Stand = 2 minutes`
+- `InitialSit = 60 minutes`
+- `RecurringSit = 50 minutes`
+- `Stand = 20 minutes`
 - The main window no longer shows a separate `Reminder Transitions` panel.
 - Windows session events are now persisted per user in `%LocalAppData%\StandupReminder\session-events.json` via `LocalAppDataSessionEventLogStore`.
 - The dashboard shows only the Windows session event feed, trimmed to the last 48 hours and preserved across app restarts.
