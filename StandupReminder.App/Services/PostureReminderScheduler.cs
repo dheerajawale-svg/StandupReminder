@@ -8,6 +8,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     private static readonly TimeSpan SnoozeDuration = TimeSpan.FromMinutes(5);
 
     private ReminderScheduleOptions _options;
+    private AppearanceSettings _appearanceSettings;
     private readonly ITrayService _trayService;
     private readonly DispatcherTimer _timer;
 
@@ -27,9 +28,10 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     public bool IsPaused => _phase == ReminderPhase.PausedForLock;
 
-    public PostureReminderScheduler(ReminderScheduleOptions options, ITrayService trayService)
+    public PostureReminderScheduler(ReminderScheduleOptions options, AppearanceSettings appearanceSettings, ITrayService trayService)
     {
         _options = CloneOptions(options);
+        _appearanceSettings = NormalizeAppearanceSettings(appearanceSettings);
         _trayService = trayService;
         _timer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -57,6 +59,18 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         {
             _promptWindow.UpdateStandDuration(_options.Stand);
         }
+        RaiseStateChanged();
+    }
+
+    public void UpdateAppearanceSettings(AppearanceSettings settings)
+    {
+        _appearanceSettings = NormalizeAppearanceSettings(settings);
+
+        if (_phase == ReminderPhase.StandPromptPending && _promptWindow is not null)
+        {
+            _promptWindow.UpdateBackground(_appearanceSettings.WindowBackgroundArgbHex);
+        }
+
         RaiseStateChanged();
     }
 
@@ -215,7 +229,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             return;
         }
 
-        _promptWindow = new StandUpReminderWindow(_options.Stand);
+        _promptWindow = new StandUpReminderWindow(_options.Stand, _appearanceSettings.WindowBackgroundArgbHex);
         _promptWindow.Confirmed += OnPromptConfirmed;
         _promptWindow.Snoozed += OnPromptSnoozed;
         _promptWindow.Closed += OnPromptClosed;
@@ -293,6 +307,19 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             InitialSit = options.InitialSit,
             RecurringSit = options.RecurringSit,
             Stand = options.Stand
+        };
+    }
+
+    private static AppearanceSettings NormalizeAppearanceSettings(AppearanceSettings settings)
+    {
+        if (!ColorUtil.TryParseArgbHex(settings.WindowBackgroundArgbHex, out var color))
+        {
+            return new AppearanceSettings();
+        }
+
+        return new AppearanceSettings
+        {
+            WindowBackgroundArgbHex = ColorUtil.ToArgbHex(color)
         };
     }
 

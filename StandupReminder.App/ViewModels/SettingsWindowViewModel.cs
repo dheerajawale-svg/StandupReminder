@@ -10,15 +10,17 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged
     private string _initialSitMinutes;
     private string _recurringSitMinutes;
     private string _standMinutes;
+    private string _windowBackgroundArgbHex;
     private string _errorMessage = string.Empty;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public SettingsWindowViewModel(ReminderScheduleOptions options)
+    public SettingsWindowViewModel(ReminderScheduleOptions options, AppearanceSettings appearanceSettings)
     {
         _initialSitMinutes = ToWholeMinutes(options.InitialSit).ToString(CultureInfo.InvariantCulture);
         _recurringSitMinutes = ToWholeMinutes(options.RecurringSit).ToString(CultureInfo.InvariantCulture);
         _standMinutes = ToWholeMinutes(options.Stand).ToString(CultureInfo.InvariantCulture);
+        _windowBackgroundArgbHex = appearanceSettings.WindowBackgroundArgbHex;
     }
 
     public string InitialSitMinutes
@@ -37,6 +39,12 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged
     {
         get => _standMinutes;
         set => SetProperty(ref _standMinutes, value);
+    }
+
+    public string WindowBackgroundArgbHex
+    {
+        get => _windowBackgroundArgbHex;
+        set => SetProperty(ref _windowBackgroundArgbHex, value);
     }
 
     public string ErrorMessage

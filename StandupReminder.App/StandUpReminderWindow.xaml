@@ -1,4 +1,5 @@
 <Window x:Class="StandupReminder.App.StandUpReminderWindow"
+        MouseLeftButtonDown="OnMouseLeftButtonDown"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -19,10 +20,82 @@
                             GlassFrameThickness="0"
                             ResizeBorderThickness="0" />
     </shell:WindowChrome.WindowChrome>
-    <Border Padding="24" CornerRadius="16">
-        <Border.Background>
-            <SolidColorBrush Color="#1E1E1E" Opacity="0.72" />
-        </Border.Background>
+    <Window.Resources>
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#33FFFFFF" />
+            <Setter Property="BorderBrush" Value="#55FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                RenderTransformOrigin="0.5,0.5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#88FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF" />
+                                <Setter TargetName="Bd" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#0078D4" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                RenderTransformOrigin="0.5,0.5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1A8DE0" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#006CBD" />
+                                <Setter TargetName="Bd" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Border x:Name="ReminderBackgroundBorder"
+            Padding="24"
+            CornerRadius="16"
+            Background="#B81E1E1E"
+            TextElement.Foreground="White">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -38,8 +111,8 @@
             <TextBlock Grid.Row="1"
                        Margin="0,10,0,0"
                        FontSize="16"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Text="Take a break from sitting. You can confirm now or snooze this reminder for 5 minutes." />
+                       HorizontalAlignment="Center"
+                       Text="Take a break from sitting." />
 
             <Border Grid.Row="2"
                     Margin="0,20,0,20"
@@ -48,10 +121,9 @@
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="12">
-                <TextBlock TextWrapping="Wrap"
-                           x:Name="StandDurationTextBlock"
-                           FontSize="15"
-                           Text="Stand up now, stay active for the next 20 minutes" />
+                <TextBlock x:Name="StandDurationTextBlock"
+                           TextWrapping="Wrap"
+                           FontSize="15" />
             </Border>
 
             <Grid Grid.Row="3">
@@ -65,14 +137,14 @@
                         Width="120"
                         Height="40"
                         Margin="0,0,12,0"
-                        Background="{DynamicResource ControlFillColorSecondaryBrush}"
-                        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         Click="OnSnoozeClicked"
                         Content="Snooze 5 min" />
 
                 <Button Grid.Column="2"
                         Width="160"
                         Height="40"
+                        Style="{StaticResource PrimaryButtonStyle}"
                         Click="OnConfirmClicked"
                         Content="I stood up" />
             </Grid>

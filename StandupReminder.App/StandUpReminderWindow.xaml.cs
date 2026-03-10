@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using StandupReminder.App.Models;
 
 namespace StandupReminder.App;
 
@@ -11,10 +13,11 @@ public partial class StandUpReminderWindow : Window
     public event EventHandler? Confirmed;
     public event EventHandler? Snoozed;
 
-    public StandUpReminderWindow(TimeSpan standDuration)
+    public StandUpReminderWindow(TimeSpan standDuration, string backgroundArgbHex)
     {
         InitializeComponent();
         UpdateStandDuration(standDuration);
+        UpdateBackground(backgroundArgbHex);
         Closing += OnClosing;
         PreviewKeyDown += OnPreviewKeyDown;
     }
@@ -34,6 +37,17 @@ public partial class StandUpReminderWindow : Window
     {
         _allowClose = true;
         Close();
+    }
+
+    public void UpdateBackground(string backgroundArgbHex)
+    {
+        if (!ColorUtil.TryParseArgbHex(backgroundArgbHex, out var color)
+            && !ColorUtil.TryParseArgbHex(AppearanceSettings.DefaultWindowBackgroundArgbHex, out color))
+        {
+            return;
+        }
+
+        ReminderBackgroundBorder.Background = ColorUtil.ToBrush(color);
     }
 
     private void OnConfirmClicked(object sender, RoutedEventArgs e)
@@ -64,6 +78,27 @@ public partial class StandUpReminderWindow : Window
         {
             e.Cancel = true;
         }
+    }
+
+    private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _ = sender;
+
+        if (!IsDescendantOfButton(e.OriginalSource as DependencyObject))
+        {
+            DragMove();
+        }
+    }
+
+    private static bool IsDescendantOfButton(DependencyObject? element)
+    {
+        while (element is not null)
+        {
+            if (element is System.Windows.Controls.Button)
+                return true;
+            element = VisualTreeHelper.GetParent(element);
+        }
+        return false;
     }
 
     private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)

@@ -11,11 +11,13 @@ public partial class App : System.Windows.Application
 {
     private ITrayService? _trayService;
     private IReminderSettingsStore? _settingsStore;
+    private IAppearanceSettingsStore? _appearanceSettingsStore;
     private IPostureReminderScheduler? _scheduler;
     private MainWindow? _mainWindow;
     private MainWindowViewModel? _mainWindowViewModel;
     private SettingsWindow? _settingsWindow;
     private ReminderScheduleOptions _currentReminderOptions = new();
+    private AppearanceSettings _currentAppearanceSettings = new();
     private bool _isShuttingDown;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -26,16 +28,20 @@ public partial class App : System.Windows.Application
 
         var settingsStore = new LocalAppDataReminderSettingsStore();
         var settingsLoadResult = settingsStore.Load();
+        var appearanceSettingsStore = new LocalAppDataAppearanceSettingsStore();
+        var appearanceSettings = appearanceSettingsStore.Load();
         var sessionEventLogStore = new LocalAppDataSessionEventLogStore();
         var viewModel = new MainWindowViewModel(sessionEventLogStore);
         var trayService = new NotifyIconTrayService();
-        var scheduler = new PostureReminderScheduler(settingsLoadResult.Options, trayService);
+        var scheduler = new PostureReminderScheduler(settingsLoadResult.Options, appearanceSettings, trayService);
 
         _settingsStore = settingsStore;
+        _appearanceSettingsStore = appearanceSettingsStore;
         _trayService = trayService;
         _scheduler = scheduler;
         _mainWindowViewModel = viewModel;
         _currentReminderOptions = settingsLoadResult.Options;
+        _currentAppearanceSettings = appearanceSettings;
 
         viewModel.AttachScheduler(scheduler);
 
@@ -100,8 +106,8 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        var viewModel = new SettingsWindowViewModel(_currentReminderOptions);
-        var settingsWindow = new SettingsWindow(viewModel, SaveReminderSettings)
+        var viewModel = new SettingsWindowViewModel(_currentReminderOptions, _currentAppearanceSettings);
+        var settingsWindow = new SettingsWindow(viewModel, SaveSettings)
         {
             Owner = _mainWindow
         };
@@ -126,9 +132,9 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private string? SaveReminderSettings(ReminderScheduleOptions options)
+    private string? SaveSettings(ReminderScheduleOptions options, AppearanceSettings appearanceSettings)
     {
-        if (_settingsStore is null || _scheduler is null)
+        if (_settingsStore is null || _appearanceSettingsStore is null || _scheduler is null)
         {
             return "Reminder settings are not available right now.";
         }
@@ -136,8 +142,11 @@ public partial class App : System.Windows.Application
         try
         {
             _settingsStore.Save(options);
+            _appearanceSettingsStore.Save(appearanceSettings);
             _currentReminderOptions = options;
+            _currentAppearanceSettings = appearanceSettings;
             _scheduler.UpdateOptions(options);
+            _scheduler.UpdateAppearanceSettings(appearanceSettings);
             _mainWindowViewModel?.LogSystemMessage("Reminder settings saved.");
             return null;
         }

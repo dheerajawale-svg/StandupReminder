@@ -16,6 +16,8 @@ public interface IPostureReminderScheduler : IDisposable
 
     void UpdateOptions(ReminderScheduleOptions options);
 
+    void UpdateAppearanceSettings(AppearanceSettings settings);
+
     void HandleSessionLogon();
 
     void HandleSessionLock();

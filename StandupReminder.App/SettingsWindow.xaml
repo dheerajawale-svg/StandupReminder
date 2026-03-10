@@ -5,9 +5,9 @@
                  Title="Reminder settings"
                  Icon="Assets/reminder_17382582.ico"
                  Width="520"
-                 Height="430"
+                 Height="760"
                  MinWidth="520"
-                 MinHeight="430"
+                 MinHeight="700"
                  WindowStartupLocation="CenterScreen"
                  ResizeMode="NoResize"
                  ShowInTaskbar="False"
@@ -79,6 +79,128 @@
                                      Text="{Binding StandMinutes, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </Grid>
+                </Border>
+
+                <TextBlock Margin="0,24,0,0"
+                           FontSize="24"
+                           FontWeight="SemiBold"
+                           Text="Appearance" />
+
+                <TextBlock Margin="0,8,0,20"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Text="Customize the stand-up popup background color using ARGB hex or the channel sliders below." />
+
+                <Border Padding="18"
+                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                    <StackPanel>
+                        <ui:InfoBar x:Name="ColorValidationInfoBar"
+                                    Title="Invalid Color"
+                                    Severity="Error"
+                                    IsOpen="False"
+                                    IsClosable="False"
+                                    Margin="0,0,0,12" />
+
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border x:Name="BackgroundPreviewBorder"
+                                    Width="40"
+                                    Height="40"
+                                    CornerRadius="8"
+                                    BorderThickness="1"
+                                    BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                                    Margin="0,0,12,0" />
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Popup background color (ARGB hex)"
+                                           Margin="0,0,0,6" />
+                                <ui:TextBox x:Name="BackgroundHexTextBox"
+                                            Text="{Binding WindowBackgroundArgbHex, UpdateSourceTrigger=PropertyChanged}"
+                                            TextChanged="OnBackgroundHexTextChanged" />
+                            </StackPanel>
+
+                            <ui:Button Grid.Column="2"
+                                       Content="Pick…"
+                                       Appearance="Secondary"
+                                       VerticalAlignment="Bottom"
+                                       Margin="12,0,0,0"
+                                       Click="OnPickBackgroundColorClick" />
+                        </Grid>
+
+                        <TextBlock Margin="0,0,0,12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Text="The alpha channel controls popup transparency. This affects only the stand-up reminder popup background."
+                                   TextWrapping="Wrap" />
+
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="44" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="A" VerticalAlignment="Center" />
+                            <Slider Grid.Row="0"
+                                    Grid.Column="1"
+                                    x:Name="AlphaSlider"
+                                    Minimum="0"
+                                    Maximum="255"
+                                    ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="2"
+                                       HorizontalAlignment="Right"
+                                       Text="{Binding Value, ElementName=AlphaSlider, StringFormat={}{0:0}}" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="R" VerticalAlignment="Center" />
+                            <Slider Grid.Row="1"
+                                    Grid.Column="1"
+                                    x:Name="RedSlider"
+                                    Minimum="0"
+                                    Maximum="255"
+                                    ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="2"
+                                       HorizontalAlignment="Right"
+                                       Text="{Binding Value, ElementName=RedSlider, StringFormat={}{0:0}}" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="G" VerticalAlignment="Center" />
+                            <Slider Grid.Row="2"
+                                    Grid.Column="1"
+                                    x:Name="GreenSlider"
+                                    Minimum="0"
+                                    Maximum="255"
+                                    ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock Grid.Row="2"
+                                       Grid.Column="2"
+                                       HorizontalAlignment="Right"
+                                       Text="{Binding Value, ElementName=GreenSlider, StringFormat={}{0:0}}" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="B" VerticalAlignment="Center" />
+                            <Slider Grid.Row="3"
+                                    Grid.Column="1"
+                                    x:Name="BlueSlider"
+                                    Minimum="0"
+                                    Maximum="255"
+                                    ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock Grid.Row="3"
+                                       Grid.Column="2"
+                                       HorizontalAlignment="Right"
+                                       Text="{Binding Value, ElementName=BlueSlider, StringFormat={}{0:0}}" />
+                        </Grid>
+                    </StackPanel>
                 </Border>
 
                 <TextBlock Margin="0,16,0,0"

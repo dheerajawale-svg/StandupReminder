@@ -7,6 +7,9 @@
 - Add user-configurable reminder intervals through a settings window and persist them across restarts.
 - Preserve Windows session event history across app restarts while limiting the visible history to the last 48 hours.
 - Add a `Snooze` option to the stand-up reminder prompt so the user can defer the prompt briefly instead of only confirming immediately.
+- Add a configurable color palette for the stand-up popup background by reusing BlinkReminder's ARGB color editing approach.
+- Keep appearance concerns separated from reminder timing by introducing a dedicated `AppearanceSettings` model/store.
+- Restrict the new appearance customization to the stand-up popup window only, while preserving the current default popup color.
 
 ## Key Technical Context
 - Session detection uses `WM_WTSSESSION_CHANGE` with `WTSRegisterSessionNotification`.
@@ -22,7 +25,7 @@
 - informational sit notification
 - pause/resume across lock/unlock
 - `MainWindow` is a `Wpf.Ui.Controls.FluentWindow` and uses `SystemThemeWatcher.Watch(this)` for runtime theme tracking.
-- `StandUpReminderWindow` is also a `FluentWindow`; a crash caused by `WindowBackdropType="Acrylic"` without `ExtendsContentIntoTitleBar="True"` was fixed by enabling title-bar extension.
+- `StandUpReminderWindow` is a custom borderless `Window` used for the blocking stand-up prompt.
 - App branding now uses `StandupReminder.App\Assets\reminder_17382582.ico` and `StandupReminder.App\Assets\reminder_17382582.png`.
 - The executable icon is embedded through `ApplicationIcon`, the windows use the icon in XAML, the tray icon loads the executable's associated icon, and the Inno Setup installer uses the same `.ico` as `SetupIconFile`.
 - Reminder intervals are configurable through a new WPF-UI `SettingsWindow` opened from the tray icon context menu.
@@ -30,6 +33,13 @@
 - Persisted settings are stored as integer minute values, not raw `TimeSpan` JSON.
 - Saved reminder settings apply on the next interval boundary; they do not reset the currently active countdown.
 - `IPostureReminderScheduler` now supports runtime configuration updates through `UpdateOptions(ReminderScheduleOptions options)`.
+- Popup appearance is now configurable through a BlinkReminder-inspired ARGB editor in `SettingsWindow`.
+- The popup appearance is modeled separately via `AppearanceSettings` with default `WindowBackgroundArgbHex = "#B81E1E1E"`.
+- Reminder timing and popup appearance are persisted together in the same local settings document through `LocalAppDataSettingsDocumentStore`, but in separate sections.
+- `IPostureReminderScheduler` now also supports runtime appearance updates through `UpdateAppearanceSettings(AppearanceSettings settings)`.
+- `ColorUtil` was added to reuse BlinkReminder-style ARGB parsing/normalization and frozen WPF brush creation.
+- The settings UI now supports `#AARRGGBB` and `#RRGGBB` input, ARGB sliders, a preview swatch, and a WinForms `ColorDialog` picker.
+- `UseWindowsForms=true` was already enabled in the WPF project, so no dependency or project-file package changes were required for the picker workflow.
 - Current reminder defaults in code are:
 - `InitialSit = 60 minutes`
 - `RecurringSit = 50 minutes`
@@ -46,6 +56,7 @@
 - Current session date context for this summary update: `2026-03-10`
 - Earlier project setup session date context recorded in the repo: `2026-03-07`
 - .NET SDK detected during prior setup: `10.0.103`
+- Read-only reference app used for this session's analysis: `C:\personal\BlinkReminder\BlinkReminder`
 - Solution/project:
 - `C:\personal\StandupReminder\StandupReminder.slnx`
 - `C:\personal\StandupReminder\StandupReminder.App\StandupReminder.App.csproj`
@@ -92,19 +103,36 @@
 - The scheduler was updated so snoozed reminders pause/resume correctly across lock/unlock and re-open the stand-up prompt when the snooze countdown expires.
 - The reminder prompt copy and layout were updated to surface the snooze option while keeping `I stood up` as the primary action.
 - `dotnet build StandupReminder.slnx` succeeded after the snooze implementation changes.
+- This session analyzed the read-only BlinkReminder app to mirror its popup background color customization approach instead of inventing a new UI pattern.
+- The user clarified the design constraints for this work:
+- use a separate `AppearanceSettings` class with its own store contract
+- keep the current popup default color
+- apply color customization only to the popup window
+- use ARGB only, with no separate opacity control
+- persist appearance with the other settings
+- The implementation introduced `AppearanceSettings`, `IAppearanceSettingsStore`, `LocalAppDataAppearanceSettingsStore`, and `LocalAppDataSettingsDocumentStore` to keep schedule and appearance logically separate while still storing both in one settings file.
+- `SettingsWindowViewModel`, `SettingsWindow.xaml`, and `SettingsWindow.xaml.cs` were extended with a BlinkReminder-style appearance editor including validation, preview, sliders, and a color picker button.
+- `StandUpReminderWindow` was refactored so its background is set from persisted ARGB settings rather than a hardcoded XAML brush.
+- `PostureReminderScheduler` and `App.xaml.cs` were updated to load, save, pass, and live-update popup appearance settings.
+- Validation in this session used `dotnet build .\StandupReminder.App\StandupReminder.App.csproj`; the first build exposed an ambiguous `Color` reference in `ColorUtil.cs`, which was fixed by aliasing WPF media types.
+- After that fix, the project build succeeded with `0` warnings and `0` errors.
 
 ## Issues, Assumptions & Open Questions
 - Resolved issue: legacy `Wpf.Ui`/`WPF.UI` package confusion. The active package remains `WPF-UI` `4.2.0`.
 - Resolved issue: reminder prompt window backdrop/title-bar mismatch causing `InvalidOperationException`.
+- Resolved issue: ambiguous `Color` reference in `ColorUtil.cs` between `System.Drawing.Color` and `System.Windows.Media.Color` during build validation.
 - Assumption: session monitoring remains scoped to the current session (`NOTIFY_FOR_THIS_SESSION = 0`), not all sessions.
 - Assumption: startup enable/disable should continue to be controlled by Windows Startup Apps and installer-managed `HKCU\...\Run`.
 - Assumption: reminder settings are intentionally per-user in `LocalAppData`, matching the tray app's current user-scoped behavior.
 - Assumption: settings changes should not reset an active countdown; they apply on the next applicable phase transition.
 - Assumption: snooze is intentionally a fixed non-configurable `5 minute` delay and does not change `settings.json` or `ReminderScheduleOptions`.
+- Assumption: popup background appearance remains intentionally limited to the stand-up reminder window and should not spill over into `MainWindow` or `SettingsWindow` theming.
+- Assumption: BlinkReminder continues to be read-only reference context and must not be modified while borrowing its logic patterns.
 - Current known issue for future debugging:
 - the installed build was previously reported to stop or crash around the reminder stage during a manual installed-app test
 - the exact root cause in the installed/non-VS scenario remains unconfirmed after the later reminder-window fix
 - Open question: manual end-to-end verification of the new snooze flow is still pending for prompt display, snooze expiry, and lock/unlock resume behavior.
+- Open question: manual smoke verification of the new popup appearance workflow is still pending for save/reload behavior, invalid color handling, and live prompt background updates.
 - Open question: whether the current `2 minute` defaults should remain a debug-only choice or be moved behind an explicit development configuration.
 - Open question: whether to support all sessions (`NOTIFY_FOR_ALL_SESSIONS`) instead of current-session-only registration.
 
@@ -112,13 +140,18 @@
 - Files central to the current implementation:
 - `C:\personal\StandupReminder\StandupReminder.App\App.xaml`
 - `C:\personal\StandupReminder\StandupReminder.App\App.xaml.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\ColorUtil.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\MainWindow.xaml`
 - `C:\personal\StandupReminder\StandupReminder.App\MainWindow.xaml.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Models\AppearanceSettings.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\ViewModels\MainWindowViewModel.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\SettingsWindow.xaml`
 - `C:\personal\StandupReminder\StandupReminder.App\SettingsWindow.xaml.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\ViewModels\SettingsWindowViewModel.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\PostureReminderScheduler.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\IAppearanceSettingsStore.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\LocalAppDataAppearanceSettingsStore.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\LocalAppDataSettingsDocumentStore.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\LocalAppDataReminderSettingsStore.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\LocalAppDataSessionEventLogStore.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Models\ReminderPhase.cs`
@@ -137,8 +170,10 @@
 - `C:\Program Files (x86)\Inno Setup 6\ISCC.exe C:\personal\StandupReminder\Installer\StandupReminder.iss` succeeded
 - `dotnet build StandupReminder.slnx` also succeeded after the icon, settings, and persisted session-event-history changes
 - `dotnet build StandupReminder.slnx` succeeded after adding the stand-up snooze flow and `SnoozedCountdown` state
+- `dotnet build .\StandupReminder.App\StandupReminder.App.csproj` succeeded after the popup appearance customization changes
 - Output artifact produced:
 - `C:\personal\StandupReminder\artifacts\installer\StandupReminder-Setup.exe`
 - External references used during the project:
 - Microsoft Learn: `WM_WTSSESSION_CHANGE`, `WTSRegisterSessionNotification`, `WM_POWERBROADCAST`, `SystemEvents.SessionSwitch`, `SystemEvents.PowerModeChanged`, `Run and RunOnce Registry Keys`, and Windows startup-app guidance
 - Context7: `/lepoco/wpfui` docs for themes, `FluentWindow`, `ApplicationThemeManager`, and `SystemThemeWatcher`
+- Read-only implementation reference for this session: `C:\personal\BlinkReminder\BlinkReminder\ColorUtil.cs`, `AppSettings.cs`, `SettingsWindow.xaml`, `SettingsWindow.xaml.cs`
