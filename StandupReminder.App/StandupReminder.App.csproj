@@ -12,10 +12,16 @@
     <AssemblyTitle>StandupReminder</AssemblyTitle>
     <Description>Tray-based stand-up reminder for Windows sign-in sessions.</Description>
     <Version>1.0.0</Version>
+    <ApplicationIcon>Assets\reminder_17382582.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="WPF-UI" Version="4.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\reminder_17382582.ico" />
+    <Resource Include="Assets\reminder_17382582.png" />
   </ItemGroup>
 
 </Project>

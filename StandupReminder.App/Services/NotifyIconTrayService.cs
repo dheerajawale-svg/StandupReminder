@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using Forms = System.Windows.Forms;
 
 namespace StandupReminder.App.Services;
@@ -23,7 +24,7 @@ public sealed class NotifyIconTrayService : ITrayService
         _notifyIcon = new Forms.NotifyIcon
         {
             ContextMenuStrip = _contextMenu,
-            Icon = SystemIcons.Application,
+            Icon = LoadApplicationIcon(),
             Text = "Standup Reminder",
             Visible = false
         };
@@ -67,5 +68,20 @@ public sealed class NotifyIconTrayService : ITrayService
         {
             OpenRequested?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private static Icon LoadApplicationIcon()
+    {
+        var executablePath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(executablePath) && File.Exists(executablePath))
+        {
+            var extractedIcon = Icon.ExtractAssociatedIcon(executablePath);
+            if (extractedIcon is not null)
+            {
+                return extractedIcon;
+            }
+        }
+
+        return SystemIcons.Application;
     }
 }

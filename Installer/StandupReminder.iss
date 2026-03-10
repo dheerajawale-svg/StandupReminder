@@ -21,6 +21,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=StandupReminder.App\Assets\reminder_17382582.ico
 OutputDir=artifacts\installer
 OutputBaseFilename=StandupReminder-Setup
 UninstallDisplayIcon={app}\{#MyAppExeName}

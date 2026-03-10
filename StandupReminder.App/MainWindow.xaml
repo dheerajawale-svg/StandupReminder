@@ -7,6 +7,7 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  mc:Ignorable="d"
                  Title="Standup Reminder"
+                 Icon="Assets/reminder_17382582.ico"
                  Width="920"
                  Height="560"
                  MinWidth="720"
