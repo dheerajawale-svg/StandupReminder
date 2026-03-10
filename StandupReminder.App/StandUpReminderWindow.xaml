@@ -1,22 +1,28 @@
-<ui:FluentWindow x:Class="StandupReminder.App.StandUpReminderWindow"
-                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-                 Title="Time to stand up"
-                 Icon="Assets/reminder_17382582.ico"
-                 Width="460"
-                 Height="300"
-                 WindowStartupLocation="CenterScreen"
-                 WindowStyle="None"
-                 ResizeMode="NoResize"
-                 ShowInTaskbar="False"
-                 Topmost="True"
-                 WindowBackdropType="Acrylic"
-                 WindowCornerPreference="Round"
-                 ExtendsContentIntoTitleBar="True"
-                 Foreground="{DynamicResource TextFillColorPrimaryBrush}">
-    <Border Padding="24"
-            Background="{DynamicResource ApplicationBackgroundBrush}">
+<Window x:Class="StandupReminder.App.StandUpReminderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Time to stand up"
+        Icon="Assets/reminder_17382582.ico"
+        Width="460"
+        Height="300"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            CornerRadius="16"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="0" />
+    </shell:WindowChrome.WindowChrome>
+    <Border Padding="24" CornerRadius="16">
+        <Border.Background>
+            <SolidColorBrush Color="#1E1E1E" Opacity="0.72" />
+        </Border.Background>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -72,4 +78,4 @@
             </Grid>
         </Grid>
     </Border>
-</ui:FluentWindow>
+</Window>
