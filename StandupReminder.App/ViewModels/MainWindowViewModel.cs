@@ -9,8 +9,12 @@ namespace StandupReminder.App.ViewModels;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
+    private static readonly TimeSpan EventHistoryRetention = TimeSpan.FromHours(48);
+
+    private readonly ISessionEventLogStore _eventLogStore;
+    private readonly List<SessionEventLogEntry> _eventHistory;
+
     public ObservableCollection<string> EventLog { get; } = [];
-    public ObservableCollection<string> TransitionLog { get; } = [];
 
     private string _currentPhaseTitle = "Starting";
     private string _currentPhaseDescription = "Preparing the reminder scheduler.";
@@ -19,6 +23,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _trayHintText = "The app will keep running from the tray.";
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public MainWindowViewModel(ISessionEventLogStore eventLogStore)
+    {
+        _eventLogStore = eventLogStore;
+        _eventHistory = [.. eventLogStore.Load()];
+
+        TrimExpiredEventHistory();
+        RebuildEventLog();
+        AddEventLog("Application started.");
+    }
 
     public string CurrentPhaseTitle
     {
@@ -50,16 +64,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         private set => SetProperty(ref _trayHintText, value);
     }
 
-    public MainWindowViewModel()
-    {
-        AddEventLog("Application started.");
-    }
-
     public void AttachScheduler(IPostureReminderScheduler scheduler)
     {
         UpdateReminderState(scheduler);
         scheduler.StateChanged += OnSchedulerStateChanged;
-        scheduler.LogGenerated += OnSchedulerLogGenerated;
     }
 
     public void LogSystemMessage(string message)
@@ -115,12 +123,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private void OnSchedulerLogGenerated(object? sender, string message)
-    {
-        _ = sender;
-        AddTransitionLog(message);
-    }
-
     private void UpdateReminderState(IPostureReminderScheduler scheduler)
     {
         switch (scheduler.Phase)
@@ -168,12 +170,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void AddEventLog(string message)
     {
-        EventLog.Insert(0, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}");
+        _eventHistory.Insert(0, new SessionEventLogEntry(DateTimeOffset.Now, message));
+        TrimExpiredEventHistory();
+        RebuildEventLog();
+        _eventLogStore.Save(_eventHistory);
     }
 
-    private void AddTransitionLog(string message)
+    private void RebuildEventLog()
     {
-        TransitionLog.Insert(0, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}");
+        EventLog.Clear();
+
+        foreach (var entry in _eventHistory.OrderByDescending(item => item.Timestamp))
+        {
+            EventLog.Add($"[{entry.Timestamp.LocalDateTime:yyyy-MM-dd HH:mm:ss}] {entry.Message}");
+        }
+    }
+
+    private void TrimExpiredEventHistory()
+    {
+        var cutoff = DateTimeOffset.Now - EventHistoryRetention;
+        _eventHistory.RemoveAll(entry => entry.Timestamp < cutoff);
     }
 
     private void SetProperty(ref string field, string value, [CallerMemberName] string? propertyName = null)

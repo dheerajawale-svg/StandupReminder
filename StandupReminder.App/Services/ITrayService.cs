@@ -4,6 +4,8 @@ public interface ITrayService : IDisposable
 {
     event EventHandler? OpenRequested;
 
+    event EventHandler? SettingsRequested;
+
     event EventHandler? ExitRequested;
 
     void Initialize();

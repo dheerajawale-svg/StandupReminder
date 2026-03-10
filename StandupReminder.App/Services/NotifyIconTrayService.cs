@@ -13,12 +13,15 @@ public sealed class NotifyIconTrayService : ITrayService
 
     public event EventHandler? OpenRequested;
 
+    public event EventHandler? SettingsRequested;
+
     public event EventHandler? ExitRequested;
 
     public NotifyIconTrayService()
     {
         _contextMenu = new Forms.ContextMenuStrip();
         _contextMenu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke(this, EventArgs.Empty));
+        _contextMenu.Items.Add("Settings", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
         _contextMenu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
 
         _notifyIcon = new Forms.NotifyIcon

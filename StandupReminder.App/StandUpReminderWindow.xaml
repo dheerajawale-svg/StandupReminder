@@ -43,6 +43,7 @@
                     BorderThickness="1"
                     CornerRadius="12">
                 <TextBlock TextWrapping="Wrap"
+                           x:Name="StandDurationTextBlock"
                            FontSize="15"
                            Text="Stand up now, stay active for the next 20 minutes, and then the app will notify you when it is time to sit again." />
             </Border>

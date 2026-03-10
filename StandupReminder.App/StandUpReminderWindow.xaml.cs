@@ -11,11 +11,17 @@ public partial class StandUpReminderWindow : FluentWindow
 
     public event EventHandler? Confirmed;
 
-    public StandUpReminderWindow()
+    public StandUpReminderWindow(TimeSpan standDuration)
     {
         InitializeComponent();
+        UpdateStandDuration(standDuration);
         Closing += OnClosing;
         PreviewKeyDown += OnPreviewKeyDown;
+    }
+
+    public void UpdateStandDuration(TimeSpan standDuration)
+    {
+        StandDurationTextBlock.Text = $"Stand up now, stay active for the next {FormatMinutes(standDuration)}, and then the app will notify you when it is time to sit again.";
     }
 
     public void DismissForLock()
@@ -58,5 +64,11 @@ public partial class StandUpReminderWindow : FluentWindow
         {
             e.Handled = true;
         }
+    }
+
+    private static string FormatMinutes(TimeSpan duration)
+    {
+        var wholeMinutes = Math.Max(1, (int)Math.Round(duration.TotalMinutes, MidpointRounding.AwayFromZero));
+        return wholeMinutes == 1 ? "1 minute" : $"{wholeMinutes} minutes";
     }
 }

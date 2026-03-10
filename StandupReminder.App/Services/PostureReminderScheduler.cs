@@ -5,7 +5,7 @@ namespace StandupReminder.App.Services;
 
 public sealed class PostureReminderScheduler : IPostureReminderScheduler
 {
-    private readonly ReminderScheduleOptions _options;
+    private ReminderScheduleOptions _options;
     private readonly ITrayService _trayService;
     private readonly DispatcherTimer _timer;
 
@@ -19,8 +19,6 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     public event EventHandler? StateChanged;
 
-    public event EventHandler<string>? LogGenerated;
-
     public ReminderPhase Phase => _phase;
 
     public TimeSpan RemainingTime => _remainingTime < TimeSpan.Zero ? TimeSpan.Zero : _remainingTime;
@@ -29,7 +27,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     public PostureReminderScheduler(ReminderScheduleOptions options, ITrayService trayService)
     {
-        _options = options;
+        _options = CloneOptions(options);
         _trayService = trayService;
         _timer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -46,19 +44,27 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         }
 
         _hasStarted = true;
-        Log("Reminder scheduler started.");
         BeginSittingCountdown(isInitial: true);
+    }
+
+    public void UpdateOptions(ReminderScheduleOptions options)
+    {
+        _options = CloneOptions(options);
+
+        if (_phase == ReminderPhase.StandPromptPending && _promptWindow is not null)
+        {
+            _promptWindow.UpdateStandDuration(_options.Stand);
+        }
+        RaiseStateChanged();
     }
 
     public void HandleSessionLogon()
     {
         if (_hasStarted)
         {
-            Log("Logon detected while the reminder cycle was already running.");
             return;
         }
 
-        Log("Logon detected. Starting the reminder cycle.");
         Start();
     }
 
@@ -78,14 +84,12 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 CaptureRemainingTime();
                 _timer.Stop();
                 _phase = ReminderPhase.PausedForLock;
-                Log("Session locked. Countdown paused.");
                 RaiseStateChanged();
                 break;
 
             case ReminderPhase.StandPromptPending:
                 DismissPromptForLock();
                 _phase = ReminderPhase.PausedForLock;
-                Log("Session locked. Stand-up prompt deferred until unlock.");
                 RaiseStateChanged();
                 break;
         }
@@ -105,13 +109,11 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 _phase = _phaseBeforePause;
                 _phaseEndsAt = DateTimeOffset.Now + _remainingTime;
                 _timer.Start();
-                Log($"Session unlocked. Resumed {DescribePhase(_phase)} countdown with {FormatDuration(_remainingTime)} remaining.");
                 RaiseStateChanged();
                 break;
 
             case ReminderPhase.StandPromptPending:
                 _phase = ReminderPhase.StandPromptPending;
-                Log("Session unlocked. Stand-up prompt restored.");
                 RaiseStateChanged();
                 ShowStandPrompt();
                 break;
@@ -137,16 +139,12 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         var duration = isInitial ? _options.InitialSit : _options.RecurringSit;
         _phase = ReminderPhase.SittingCountdown;
         StartCountdown(duration);
-        Log(isInitial
-            ? $"Started the first sitting interval for {FormatDuration(duration)}."
-            : $"Started the next sitting interval for {FormatDuration(duration)}.");
     }
 
     private void BeginStandingCountdown()
     {
         _phase = ReminderPhase.StandingCountdown;
         StartCountdown(_options.Stand);
-        Log($"Stand-up confirmed. Standing interval started for {FormatDuration(_options.Stand)}.");
     }
 
     private void StartCountdown(TimeSpan duration)
@@ -185,13 +183,11 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             case ReminderPhase.SittingCountdown:
                 _phase = ReminderPhase.StandPromptPending;
                 _remainingTime = TimeSpan.Zero;
-                Log("Sitting interval finished. Waiting for stand-up confirmation.");
                 RaiseStateChanged();
                 ShowStandPrompt();
                 break;
 
             case ReminderPhase.StandingCountdown:
-                Log("Standing interval finished. Showing the sit notification and restarting the sitting timer.");
                 _trayService.ShowBalloonTip("Time to sit", "Your standing interval is done. The next sitting timer has started.");
                 BeginSittingCountdown(isInitial: false);
                 break;
@@ -206,7 +202,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             return;
         }
 
-        _promptWindow = new StandUpReminderWindow();
+        _promptWindow = new StandUpReminderWindow(_options.Stand);
         _promptWindow.Confirmed += OnPromptConfirmed;
         _promptWindow.Closed += OnPromptClosed;
         _promptWindow.Show();
@@ -263,25 +259,25 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void Log(string message)
+    private static ReminderScheduleOptions CloneOptions(ReminderScheduleOptions options)
     {
-        LogGenerated?.Invoke(this, message);
-    }
+        ValidateDuration(options.InitialSit, nameof(options.InitialSit));
+        ValidateDuration(options.RecurringSit, nameof(options.RecurringSit));
+        ValidateDuration(options.Stand, nameof(options.Stand));
 
-    private static string DescribePhase(ReminderPhase phase)
-    {
-        return phase switch
+        return new ReminderScheduleOptions
         {
-            ReminderPhase.SittingCountdown => "sitting",
-            ReminderPhase.StandingCountdown => "standing",
-            ReminderPhase.StandPromptPending => "stand-up confirmation",
-            ReminderPhase.PausedForLock => "paused",
-            _ => "idle"
+            InitialSit = options.InitialSit,
+            RecurringSit = options.RecurringSit,
+            Stand = options.Stand
         };
     }
 
-    private static string FormatDuration(TimeSpan duration)
+    private static void ValidateDuration(TimeSpan duration, string parameterName)
     {
-        return duration.ToString(@"hh\:mm\:ss");
+        if (duration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Reminder durations must be greater than zero.");
+        }
     }
 }

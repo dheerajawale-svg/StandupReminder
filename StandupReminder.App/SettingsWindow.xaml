@@ -1,0 +1,106 @@
+<ui:FluentWindow x:Class="StandupReminder.App.SettingsWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="Reminder settings"
+                 Icon="Assets/reminder_17382582.ico"
+                 Width="520"
+                 Height="430"
+                 MinWidth="520"
+                 MinHeight="430"
+                 WindowStartupLocation="CenterScreen"
+                 ResizeMode="NoResize"
+                 ShowInTaskbar="False"
+                 WindowBackdropType="Mica"
+                 WindowCornerPreference="Round"
+                 ExtendsContentIntoTitleBar="True"
+                 Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="Reminder settings" />
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                <TextBlock FontSize="24"
+                           FontWeight="SemiBold"
+                           Text="Reminder intervals" />
+
+                <TextBlock Margin="0,8,0,20"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Text="Update the sitting and standing durations in minutes. Saved changes apply on the next interval boundary." />
+
+                <Border Padding="18"
+                        Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0">
+                            <TextBlock FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Text="Initial sit interval (minutes)" />
+                            <TextBlock Margin="0,4,0,8"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Used once after the scheduler starts." />
+                            <TextBox Height="36"
+                                     Text="{Binding InitialSitMinutes, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Margin="0,18,0,0">
+                            <TextBlock FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Text="Recurring sit interval (minutes)" />
+                            <TextBlock Margin="0,4,0,8"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Used for every sit countdown after the first cycle." />
+                            <TextBox Height="36"
+                                     Text="{Binding RecurringSitMinutes, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Margin="0,18,0,0">
+                            <TextBlock FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Text="Stand interval (minutes)" />
+                            <TextBlock Margin="0,4,0,8"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Used after you confirm the stand-up reminder." />
+                            <TextBox Height="36"
+                                     Text="{Binding StandMinutes, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <TextBlock Margin="0,16,0,0"
+                           Foreground="#C42B1C"
+                           Text="{Binding ErrorMessage}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2"
+                    Margin="20"
+                    HorizontalAlignment="Right"
+                    Orientation="Horizontal">
+            <Button Width="100"
+                    Height="36"
+                    Margin="0,0,10,0"
+                    Click="OnCancelClicked"
+                    Content="Cancel" />
+            <Button Width="100"
+                    Height="36"
+                    Click="OnSaveClicked"
+                    Content="Save" />
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

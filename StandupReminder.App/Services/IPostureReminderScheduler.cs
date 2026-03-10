@@ -6,8 +6,6 @@ public interface IPostureReminderScheduler : IDisposable
 {
     event EventHandler? StateChanged;
 
-    event EventHandler<string>? LogGenerated;
-
     ReminderPhase Phase { get; }
 
     TimeSpan RemainingTime { get; }
@@ -15,6 +13,8 @@ public interface IPostureReminderScheduler : IDisposable
     bool IsPaused { get; }
 
     void Start();
+
+    void UpdateOptions(ReminderScheduleOptions options);
 
     void HandleSessionLogon();
 
