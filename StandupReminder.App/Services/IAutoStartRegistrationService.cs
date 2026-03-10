@@ -2,5 +2,7 @@ namespace StandupReminder.App.Services;
 
 public interface IAutoStartRegistrationService
 {
-    void EnsureRegistered();
+    bool IsRegistered();
+    void Register();
+    void Unregister();
 }

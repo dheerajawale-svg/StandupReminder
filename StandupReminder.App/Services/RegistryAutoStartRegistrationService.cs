@@ -7,7 +7,7 @@ public sealed class RegistryAutoStartRegistrationService : IAutoStartRegistratio
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "StandupReminder";
 
-    public void EnsureRegistered()
+    public bool IsRegistered()
     {
         var processPath = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(processPath))
@@ -21,11 +21,28 @@ public sealed class RegistryAutoStartRegistrationService : IAutoStartRegistratio
         var command = $"\"{processPath}\"";
         var existingValue = runKey.GetValue(ValueName) as string;
 
-        if (string.Equals(existingValue, command, StringComparison.Ordinal))
+        return string.Equals(existingValue, command, StringComparison.Ordinal);
+    }
+
+    public void Register()
+    {
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath))
         {
-            return;
+            throw new InvalidOperationException("The application executable path could not be resolved.");
         }
 
-        runKey.SetValue(ValueName, command, RegistryValueKind.String);
+        using var runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath, true)
+            ?? throw new InvalidOperationException("The Windows Run registry key could not be opened.");
+
+        runKey.SetValue(ValueName, $"\"{processPath}\"", RegistryValueKind.String);
+    }
+
+    public void Unregister()
+    {
+        using var runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath, true)
+            ?? throw new InvalidOperationException("The Windows Run registry key could not be opened.");
+
+        runKey.DeleteValue(ValueName, false);
     }
 }

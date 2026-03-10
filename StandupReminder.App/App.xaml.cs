@@ -22,22 +22,11 @@ public partial class App : System.Windows.Application
         var viewModel = new MainWindowViewModel();
         var trayService = new NotifyIconTrayService();
         var scheduler = new PostureReminderScheduler(new ReminderScheduleOptions(), trayService);
-        var autoStartService = new RegistryAutoStartRegistrationService();
 
         _trayService = trayService;
         _scheduler = scheduler;
 
         viewModel.AttachScheduler(scheduler);
-
-        try
-        {
-            autoStartService.EnsureRegistered();
-            viewModel.LogSystemMessage("Configured the app to start automatically at Windows sign-in.");
-        }
-        catch (Exception ex)
-        {
-            viewModel.LogSystemMessage($"Failed to configure Windows sign-in startup. {ex.Message}");
-        }
 
         _mainWindow = new MainWindow(viewModel, scheduler);
         _mainWindow.PrepareForBackgroundLaunch();

@@ -1,6 +1,7 @@
 # Build outputs
 [Bb]in/
 [Oo]bj/
+artifacts/
 
 # User-specific files
 *.user
@@ -24,6 +25,7 @@ packages/
 
 # Logs
 *.log
+*.iss.tmp
 
 # OS files
 .DS_Store
