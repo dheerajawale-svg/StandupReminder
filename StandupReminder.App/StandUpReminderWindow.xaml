@@ -12,6 +12,7 @@
                  Topmost="True"
                  WindowBackdropType="Acrylic"
                  WindowCornerPreference="Round"
+                 ExtendsContentIntoTitleBar="True"
                  Foreground="{DynamicResource TextFillColorPrimaryBrush}">
     <Border Padding="24"
             Background="{DynamicResource ApplicationBackgroundBrush}">
