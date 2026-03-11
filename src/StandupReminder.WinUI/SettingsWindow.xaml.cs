@@ -149,6 +149,8 @@ public sealed partial class SettingsWindow : Window
         presenter.PreferredMaximumHeight = SettingsHeight;
         AppWindow.SetPresenter(presenter);
         AppWindow.Resize(new SizeInt32(SettingsWidth, SettingsHeight));
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
         CenterOnDisplay();
     }
 

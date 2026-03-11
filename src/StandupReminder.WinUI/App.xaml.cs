@@ -55,8 +55,15 @@ public partial class App : Application
             return;
         }
 
-        _mainWindow ??= _composition.CreateMainWindow();
-        _mainWindow.Activate();
+        if (_mainWindow is null)
+        {
+            _mainWindow = _composition.CreateMainWindow();
+            _mainWindow.Activate();
+        }
+        else
+        {
+            _mainWindow.RestoreFromTray();
+        }
     }
 
     private void OnWindowActivationRequested(object? sender, EventArgs e)
@@ -154,8 +161,12 @@ public partial class App : Application
             _composition = null;
         }
 
-        _mainWindow?.Close();
-        _mainWindow = null;
+        if (_mainWindow is not null)
+        {
+            _mainWindow.PrepareForExit();
+            _mainWindow.Close();
+            _mainWindow = null;
+        }
 
         Exit();
     }

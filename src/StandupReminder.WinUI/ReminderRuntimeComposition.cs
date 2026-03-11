@@ -1,4 +1,5 @@
 using System.IO;
+using Microsoft.UI.Dispatching;
 using StandupReminder.Core.Models;
 using StandupReminder.Core.Services;
 using StandupReminder.Persistence;
@@ -13,6 +14,7 @@ internal sealed class ReminderRuntimeComposition : IDisposable
     private readonly ReminderSchedulerRuntime _runtime;
     private readonly IReminderTrayHost _trayHost;
     private readonly IReminderSessionEventSource _sessionEventSource;
+    private readonly DispatcherQueue _dispatcherQueue;
     private ReminderScheduleOptions _currentReminderOptions;
     private AppearanceSettings _currentAppearanceSettings;
 
@@ -31,10 +33,11 @@ internal sealed class ReminderRuntimeComposition : IDisposable
         _runtime = runtime;
         _trayHost = trayHost;
         _sessionEventSource = sessionEventSource;
+        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         _currentReminderOptions = CloneOptions(settingsLoadResult.Options);
         _currentAppearanceSettings = CloneAppearanceSettings(appearanceSettings);
 
-        _sessionEventSource.SessionEvent += _runtime.HandleSessionEvent;
+        _sessionEventSource.SessionEvent += OnSessionEvent;
         _trayHost.OpenRequested += OnTrayOpenRequested;
         _trayHost.PauseResumeRequested += OnTrayPauseResumeRequested;
         _trayHost.SettingsRequested += OnTraySettingsRequested;
@@ -46,6 +49,12 @@ internal sealed class ReminderRuntimeComposition : IDisposable
         _trayHost.Initialize();
         UpdateTrayState();
         _runtime.Start();
+
+        _shellViewModel.LogEvent("Reminder runtime started.");
+        if (!string.IsNullOrWhiteSpace(settingsLoadResult.WarningMessage))
+        {
+            _shellViewModel.LogEvent($"Settings warning: {settingsLoadResult.WarningMessage}");
+        }
     }
 
     public event EventHandler? WindowActivationRequested;
@@ -90,12 +99,27 @@ internal sealed class ReminderRuntimeComposition : IDisposable
         _trayHost.SettingsRequested -= OnTraySettingsRequested;
         _trayHost.ExitRequested -= OnTrayExitRequested;
         _runtime.StateChanged -= OnRuntimeStateChanged;
-        _sessionEventSource.SessionEvent -= _runtime.HandleSessionEvent;
+        _sessionEventSource.SessionEvent -= OnSessionEvent;
 
         _sessionEventSource.Dispose();
         _shellViewModel.Dispose();
         _runtime.Dispose();
         _trayHost.Dispose();
+    }
+
+    private void OnSessionEvent(ReminderSessionEvent sessionEvent)
+    {
+        _runtime.HandleSessionEvent(sessionEvent);
+
+        var message = sessionEvent switch
+        {
+            ReminderSessionEvent.Logon => "Session logon detected.",
+            ReminderSessionEvent.Lock => "Session locked — timer paused.",
+            ReminderSessionEvent.Unlock => "Session unlocked — timer resumed.",
+            _ => $"Session event: {sessionEvent}."
+        };
+
+        _dispatcherQueue.TryEnqueue(() => _shellViewModel.LogEvent(message));
     }
 
     private void OnTrayOpenRequested(object? sender, EventArgs e)

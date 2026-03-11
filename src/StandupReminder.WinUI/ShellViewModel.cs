@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using StandupReminder.Core.Models;
@@ -15,6 +16,9 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
     private string _runtimeStatusMessage = string.Empty;
     private string _remainingTimeDisplay = string.Empty;
     private string _timerAdapterDisplay = string.Empty;
+    private string _currentPhaseName = string.Empty;
+    private string _phaseDescription = string.Empty;
+    private string _formattedRemainingTime = string.Empty;
 
     public ShellViewModel(ReminderScheduleOptions options, string? warningMessage, string settingsFilePath, ReminderSchedulerRuntime runtime)
     {
@@ -81,7 +85,30 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
         private set => SetProperty(ref _timerAdapterDisplay, value);
     }
 
-    public string RemainingMigrationNote => "Tray, session, stand-up prompt, and settings adapters are now wired into the WinUI runtime composition. WPF remains available only as the fallback/reference implementation while parity is validated.";
+    public ObservableCollection<string> SessionEvents { get; } = [];
+
+    public string CurrentPhaseName
+    {
+        get => _currentPhaseName;
+        private set => SetProperty(ref _currentPhaseName, value);
+    }
+
+    public string PhaseDescription
+    {
+        get => _phaseDescription;
+        private set => SetProperty(ref _phaseDescription, value);
+    }
+
+    public string FormattedRemainingTime
+    {
+        get => _formattedRemainingTime;
+        private set => SetProperty(ref _formattedRemainingTime, value);
+    }
+
+    public void LogEvent(string message)
+    {
+        SessionEvents.Insert(0, $"[{DateTime.Now:HH:mm:ss}]  {message}");
+    }
 
     public void UpdateSettings(ReminderScheduleOptions options)
     {
@@ -119,6 +146,21 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
         TimerAdapterDisplay = _runtime.IsTimerRunning
             ? "Timer adapter: StandupReminder.Windows is driving runtime ticks."
             : "Timer adapter: idle until the runtime re-enters a timed phase.";
+
+        CurrentPhaseName = FormatPhase(_runtime.Phase);
+        PhaseDescription = _runtime.Phase switch
+        {
+            ReminderPhase.SittingCountdown => "The sitting countdown is running. The next reminder will ask you to stand up.",
+            ReminderPhase.StandingCountdown => "The standing interval is running. A sit notification will appear when it finishes.",
+            ReminderPhase.StandPromptPending => "A reminder is waiting for you to confirm that you stood up or snooze for 5 minutes.",
+            ReminderPhase.SnoozedCountdown => "The stand-up reminder was deferred for 5 minutes and will reappear when the snooze ends.",
+            ReminderPhase.PausedManually => "The reminder loop is paused from the tray. Use the tray menu to resume.",
+            ReminderPhase.PausedForLock => "The screen is locked. The interval will resume from the exact remaining time after unlock.",
+            _ => "Waiting to start — the runtime will begin after the first activation."
+        };
+        FormattedRemainingTime = _runtime.Phase == ReminderPhase.StandPromptPending
+            ? "--:--:--"
+            : $"{_runtime.RemainingTime:hh\\:mm\\:ss}";
     }
 
     private void ApplyOptions(ReminderScheduleOptions options)
