@@ -26,6 +26,50 @@
   - Thin compatibility layer for notification-area tray support and any remaining HWND-only behavior.
   - Keep persistence contracts and models portable so they survive the UI rewrite.
 
+### Proposed target solution/project structure
+- Recommendation: keep the solution intentionally lean for this app size; do not introduce an overly heavy multi-layer architecture if a small set of well-bounded projects will do.
+- Suggested target layout:
+  - `src/StandupReminder.WinUI`
+    - WinUI 3 executable shell.
+    - Owns `App.xaml`, custom `Program.cs`, window/page/viewmodel composition, theme setup, DI/bootstrap, and WinUI-facing window hosts.
+    - Contains UI only; business rules should stay out of this project.
+  - `src/StandupReminder.Core`
+    - Framework-agnostic reminder domain/application layer.
+    - Owns reminder phases, scheduler/state-machine logic, domain models, options, and service contracts such as session source, tray host, prompt host, and notification abstractions.
+    - Should not reference WinUI, WinForms, or raw Win32 APIs.
+  - `src/StandupReminder.Windows`
+    - Windows-specific integration and interop layer.
+    - Owns `AppInstance` helpers, `SystemEvents.SessionSwitch` implementation, fallback `WTSRegisterSessionNotification` implementation, tray host (`NotifyIcon` or `Shell_NotifyIcon`), app notification helpers, startup registration helpers, and HWND/AppWindow adapters.
+    - References `StandupReminder.Core`, but should remain largely UI-framework-agnostic except where WinUI window interop is unavoidable.
+  - `src/StandupReminder.Persistence`
+    - Local storage and settings/history persistence.
+    - Owns JSON document stores, local-app-data path resolution, settings import/migration, and persistence DTOs.
+    - References `StandupReminder.Core` only.
+  - `tests/StandupReminder.Core.Tests`
+    - Unit tests for scheduler behavior, pause/resume, snooze transitions, and settings/application logic.
+  - `tests/StandupReminder.Windows.Tests`
+    - Tests for Windows event translation, tray/menu command wiring, and startup/session-source adapter behavior where practical through abstractions/fakes.
+  - `packaging/StandupReminder.Package`
+    - Optional MSIX/packaging project if the packaged WinUI path is chosen.
+    - If packaging is deferred, this can be introduced later rather than on day one.
+  - `Installer/`
+    - Keep only as a temporary bridge if unpackaged/Inno-based distribution remains part of the transition plan.
+- Recommended dependency direction:
+  - `StandupReminder.WinUI` -> `StandupReminder.Core`, `StandupReminder.Windows`, `StandupReminder.Persistence`
+  - `StandupReminder.Windows` -> `StandupReminder.Core`
+  - `StandupReminder.Persistence` -> `StandupReminder.Core`
+  - test projects -> target project under test
+  - `StandupReminder.Core` should depend on nothing UI-framework-specific
+- Current-to-target code placement guidance:
+  - `StandupReminder.App/App.xaml.cs` -> `StandupReminder.WinUI` bootstrap/composition
+  - `StandupReminder.App/Services/PostureReminderScheduler.cs` -> mostly `StandupReminder.Core`
+  - `StandupReminder.App/Services/WindowsSessionEventMonitor.cs` -> `StandupReminder.Windows`
+  - `StandupReminder.App/Services/NotifyIconTrayService.cs` -> `StandupReminder.Windows`
+  - `StandupReminder.App/SettingsWindow*` -> `StandupReminder.WinUI`
+  - `StandupReminder.App/StandUpReminderWindow*` -> `StandupReminder.WinUI`
+  - local app data stores -> `StandupReminder.Persistence`
+- If the team wants an even smaller initial cut, `StandupReminder.Windows` and `StandupReminder.Persistence` can temporarily live together in a single `StandupReminder.Infrastructure` project, then be split later only if the codebase grows.
+
 ### Current-to-target API/platform mapping
 
 | Current mechanism | Current role | Recommended target | Decision |
@@ -86,6 +130,7 @@
 ### Phase 1 - Extract framework-agnostic core logic from WPF assumptions
 - Separate pure reminder domain logic from UI/window concerns.
 - Move scheduler state transitions, settings models, persistence contracts, and session-event translation contracts behind framework-neutral interfaces.
+- Create the new solution/project boundaries early so code is moved into the intended target projects instead of being refactored twice.
 - Define new boundaries such as:
   - app lifecycle service,
   - session event source,
