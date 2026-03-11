@@ -2,9 +2,9 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.Core.Models;
+using StandupReminder.Persistence;
 
 namespace StandupReminder.App.ViewModels;
 

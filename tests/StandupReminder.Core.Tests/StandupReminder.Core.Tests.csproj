@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\StandupReminder.Core\StandupReminder.Core.csproj" />
+    <ProjectReference Include="..\..\src\StandupReminder.Persistence\StandupReminder.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

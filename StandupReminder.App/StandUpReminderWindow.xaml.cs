@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using StandupReminder.App.Models;
+using StandupReminder.Persistence;
 
 namespace StandupReminder.App;
 

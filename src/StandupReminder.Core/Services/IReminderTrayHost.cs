@@ -1,8 +1,6 @@
-using StandupReminder.Core.Services;
+namespace StandupReminder.Core.Services;
 
-namespace StandupReminder.App.Services;
-
-public interface ITrayService : IReminderTrayHost
+public interface IReminderTrayHost : IReminderTrayNotifier, IDisposable
 {
     event EventHandler? OpenRequested;
 

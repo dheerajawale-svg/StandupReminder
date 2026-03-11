@@ -5,6 +5,8 @@ namespace StandupReminder.WinUI;
 
 public partial class App : Application
 {
+    private readonly AppBootstrapper _bootstrapper = new();
+    private ReminderRuntimeComposition? _composition;
     private MainWindow? _mainWindow;
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -23,7 +25,8 @@ public partial class App : Application
 
     private void ActivateMainWindow()
     {
-        _mainWindow ??= new MainWindow();
+        _composition ??= _bootstrapper.CreateRuntimeComposition();
+        _mainWindow ??= _composition.CreateMainWindow();
         _mainWindow.Activate();
     }
 }

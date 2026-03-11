@@ -1,6 +1,4 @@
-using StandupReminder.App.Models;
-
-namespace StandupReminder.App.Services;
+namespace StandupReminder.Persistence;
 
 public interface IAppearanceSettingsStore
 {

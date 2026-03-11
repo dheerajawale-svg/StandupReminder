@@ -1,12 +1,13 @@
 using System.IO;
 using System.Text.Json;
-using StandupReminder.App.Models;
 using StandupReminder.Core.Models;
 
-namespace StandupReminder.App.Services;
+namespace StandupReminder.Persistence;
 
-internal sealed class LocalAppDataSettingsDocumentStore
+public sealed class LocalAppDataSettingsDocumentStore
 {
+    public const string DefaultWindowBackgroundArgbHex = AppearanceSettings.DefaultWindowBackgroundArgbHex;
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true
@@ -14,13 +15,12 @@ internal sealed class LocalAppDataSettingsDocumentStore
 
     private readonly string _settingsFilePath;
 
-    public LocalAppDataSettingsDocumentStore()
+    public LocalAppDataSettingsDocumentStore(string? settingsFilePath = null)
     {
-        var settingsDirectory = Path.Combine(
+        _settingsFilePath = settingsFilePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "StandupReminder");
-
-        _settingsFilePath = Path.Combine(settingsDirectory, "settings.json");
+            "StandupReminder",
+            "settings.json");
     }
 
     public string SettingsFilePath => _settingsFilePath;
@@ -59,14 +59,14 @@ internal sealed class LocalAppDataSettingsDocumentStore
         File.WriteAllText(_settingsFilePath, json);
     }
 
-    internal sealed class SettingsDocument
+    public sealed class SettingsDocument
     {
         public ReminderScheduleSection? ReminderSchedule { get; set; }
 
         public AppearanceSection? Appearance { get; set; }
     }
 
-    internal sealed class ReminderScheduleSection
+    public sealed class ReminderScheduleSection
     {
         public int InitialSitMinutes { get; set; }
 
@@ -90,15 +90,15 @@ internal sealed class LocalAppDataSettingsDocumentStore
         }
     }
 
-    internal sealed class AppearanceSection
+    public sealed class AppearanceSection
     {
-        public string WindowBackgroundArgbHex { get; set; } = AppearanceSettings.DefaultWindowBackgroundArgbHex;
+        public string WindowBackgroundArgbHex { get; set; } = DefaultWindowBackgroundArgbHex;
 
-        public static AppearanceSection FromSettings(AppearanceSettings settings)
+        public static AppearanceSection FromArgbHex(string argbHex)
         {
             return new AppearanceSection
             {
-                WindowBackgroundArgbHex = settings.WindowBackgroundArgbHex
+                WindowBackgroundArgbHex = ArgbHexColor.NormalizeOrDefault(argbHex)
             };
         }
     }

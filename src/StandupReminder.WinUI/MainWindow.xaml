@@ -3,11 +3,25 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="StandupReminder">
-    <Grid Padding="24">
-        <StackPanel Spacing="12">
-            <TextBlock FontSize="24" FontWeight="SemiBold" Text="StandupReminder WinUI shell" />
-            <TextBlock Text="Phase 2 bootstrap is now in place with a custom Program entry point and single-instance startup flow." TextWrapping="Wrap" />
-            <TextBlock Text="Reminder composition and tray/session wiring still remain to be migrated into this shell." TextWrapping="Wrap" />
-        </StackPanel>
-    </Grid>
+    <ScrollViewer>
+        <Grid Padding="24">
+            <StackPanel Spacing="12">
+                <TextBlock FontSize="24" FontWeight="SemiBold" Text="StandupReminder WinUI shell" />
+                <TextBlock FontSize="18" FontWeight="SemiBold" Text="{x:Bind ViewModel.StatusTitle, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Margin="0,8,0,0" FontWeight="SemiBold" Text="Loaded reminder schedule" />
+                <TextBlock Text="{x:Bind ViewModel.InitialSitDisplay, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind ViewModel.RecurringSitDisplay, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind ViewModel.StandDisplay, Mode=OneWay}" />
+                <TextBlock Margin="0,8,0,0" FontWeight="SemiBold" Text="Live runtime state" />
+                <TextBlock Text="{x:Bind ViewModel.RuntimePhaseDisplay, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind ViewModel.RuntimeStatusMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Text="{x:Bind ViewModel.RemainingTimeDisplay, Mode=OneWay}" />
+                <TextBlock Text="{x:Bind ViewModel.TimerAdapterDisplay, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Margin="0,8,0,0" FontWeight="SemiBold" Text="Settings file" />
+                <TextBlock Text="{x:Bind ViewModel.SettingsFilePath, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+                <TextBlock Margin="0,8,0,0" Text="{x:Bind ViewModel.RemainingMigrationNote, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </Window>

@@ -1,6 +1,6 @@
 using StandupReminder.Core.Models;
 
-namespace StandupReminder.App.Services;
+namespace StandupReminder.Persistence;
 
 public interface IReminderSettingsStore
 {

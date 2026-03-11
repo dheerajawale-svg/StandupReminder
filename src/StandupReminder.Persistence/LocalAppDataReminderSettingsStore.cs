@@ -1,10 +1,17 @@
 using StandupReminder.Core.Models;
 
-namespace StandupReminder.App.Services;
+namespace StandupReminder.Persistence;
 
 public sealed class LocalAppDataReminderSettingsStore : IReminderSettingsStore
 {
-    private readonly LocalAppDataSettingsDocumentStore _documentStore = new();
+    private readonly LocalAppDataSettingsDocumentStore _documentStore;
+
+    public LocalAppDataReminderSettingsStore(LocalAppDataSettingsDocumentStore? documentStore = null)
+    {
+        _documentStore = documentStore ?? new LocalAppDataSettingsDocumentStore();
+    }
+
+    public string SettingsFilePath => _documentStore.SettingsFilePath;
 
     public ReminderSettingsLoadResult Load()
     {

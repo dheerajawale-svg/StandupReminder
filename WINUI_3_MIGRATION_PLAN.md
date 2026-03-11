@@ -1,262 +1,248 @@
 # WinUI 3 Migration Plan
 
 ## User Goals & Intent
-- Fully revamp the current WPF tray-first reminder app into a modern WinUI 3 desktop app rather than attempt an in-place framework conversion.
-- Preserve current business behavior: single-instance desktop lifecycle, tray-first operation, persisted reminder settings, persisted session-event history, snooze support, manual pause/resume, and the stand-up prompt workflow.
-- Replace WPF-specific window/message plumbing with WinUI 3 and Windows App SDK patterns wherever a modern equivalent exists.
-- Keep Win32 interop only where Microsoft still exposes no first-party WinUI-native equivalent.
-- Success criteria for the migration:
-  - feature parity with the existing WPF app,
-  - packaged WinUI 3 app recommended as the default target,
-  - explicit compatibility layer for tray and any remaining session/owner-window interop,
-  - a validation plan that proves behavior outside Visual Studio-installed runs.
+- Complete the migration from the current WPF tray-first app to a WinUI 3 desktop app through small, safe, reviewable slices.
+- Preserve current reminder behavior while the migration is in progress: single-instance lifecycle, tray-first operation, reminder scheduling, snooze, manual pause/resume, persisted settings, and session-event awareness.
+- Keep WPF working until each migrated slice has a validated WinUI equivalent.
+- Prefer modern Windows App SDK and WinUI patterns where they exist; isolate unavoidable Win32/compatibility code behind adapters.
+- End state success criteria:
+  - WinUI owns the app bootstrap, runtime composition, prompt/settings UX, and steady-state desktop experience.
+  - `StandupReminder.Core` remains framework-agnostic.
+  - `StandupReminder.Windows` owns Windows-only adapters/interactions.
+  - `StandupReminder.Persistence` owns local storage concerns.
+  - WPF can be retired only after parity is validated on real installed-style runs.
 
 ## Key Technical Context
-- The current app is feasible to migrate, but not by direct file-for-file conversion, because the hard coupling is to WPF window/message infrastructure rather than to Win32 session APIs themselves.
-- Current repo areas that define the migration surface:
-  - `StandupReminder.App/App.xaml.cs` = startup/composition root.
-  - `StandupReminder.App/Services/WindowsSessionEventMonitor.cs` = WPF `HwndSource` + `WindowInteropHelper` + `WM_WTSSESSION_CHANGE` integration.
-  - `StandupReminder.App/Services/NotifyIconTrayService.cs` = WinForms tray/menu/timer compatibility layer.
-  - `StandupReminder.App/Services/PostureReminderScheduler.cs` = core reminder state machine.
-  - `StandupReminder.App/StandUpReminderWindow.xaml.cs` and `SettingsWindow.xaml.cs` = WPF-specific window UX.
-- Recommended target architecture:
-  - WinUI 3 desktop app for UI shell and windows.
-  - Windows App SDK app lifecycle APIs for single-instance orchestration.
-  - Extracted framework-agnostic reminder domain/services where possible.
-  - Thin compatibility layer for notification-area tray support and any remaining HWND-only behavior.
-  - Keep persistence contracts and models portable so they survive the UI rewrite.
 
-### Proposed target solution/project structure
-- Recommendation: keep the solution intentionally lean for this app size; do not introduce an overly heavy multi-layer architecture if a small set of well-bounded projects will do.
-- Suggested target layout:
+### Current migration baseline
+The plan should assume the following foundation is already complete and should **not** be treated as pending work:
+
+- Solution/project structure is in place:
   - `src/StandupReminder.WinUI`
-    - WinUI 3 executable shell.
-    - Owns `App.xaml`, custom `Program.cs`, window/page/viewmodel composition, theme setup, DI/bootstrap, and WinUI-facing window hosts.
-    - Contains UI only; business rules should stay out of this project.
   - `src/StandupReminder.Core`
-    - Framework-agnostic reminder domain/application layer.
-    - Owns reminder phases, scheduler/state-machine logic, domain models, options, and service contracts such as session source, tray host, prompt host, and notification abstractions.
-    - Should not reference WinUI, WinForms, or raw Win32 APIs.
   - `src/StandupReminder.Windows`
-    - Windows-specific integration and interop layer.
-    - Owns `AppInstance` helpers, `SystemEvents.SessionSwitch` implementation, fallback `WTSRegisterSessionNotification` implementation, tray host (`NotifyIcon` or `Shell_NotifyIcon`), app notification helpers, startup registration helpers, and HWND/AppWindow adapters.
-    - References `StandupReminder.Core`, but should remain largely UI-framework-agnostic except where WinUI window interop is unavoidable.
   - `src/StandupReminder.Persistence`
-    - Local storage and settings/history persistence.
-    - Owns JSON document stores, local-app-data path resolution, settings import/migration, and persistence DTOs.
-    - References `StandupReminder.Core` only.
+  - solution wiring and WinUI icon asset setup
+- Core/domain extraction is complete:
+  - `ReminderPhase`
+  - `ReminderScheduleOptions`
+  - scheduler state-machine extraction into `StandupReminder.Core`
+  - framework-agnostic reminder contracts for prompt/tray/session-related behavior
+- Core validation foundation is in place:
   - `tests/StandupReminder.Core.Tests`
-    - Unit tests for scheduler behavior, pause/resume, snooze transitions, and settings/application logic.
-  - `tests/StandupReminder.Windows.Tests`
-    - Tests for Windows event translation, tray/menu command wiring, and startup/session-source adapter behavior where practical through abstractions/fakes.
-  - `packaging/StandupReminder.Package`
-    - Optional MSIX/packaging project if the packaged WinUI path is chosen.
-    - If packaging is deferred, this can be introduced later rather than on day one.
-  - `Installer/`
-    - Keep only as a temporary bridge if unpackaged/Inno-based distribution remains part of the transition plan.
-- Recommended dependency direction:
-  - `StandupReminder.WinUI` -> `StandupReminder.Core`, `StandupReminder.Windows`, `StandupReminder.Persistence`
-  - `StandupReminder.Windows` -> `StandupReminder.Core`
-  - `StandupReminder.Persistence` -> `StandupReminder.Core`
-  - test projects -> target project under test
-  - `StandupReminder.Core` should depend on nothing UI-framework-specific
-- Current-to-target code placement guidance:
-  - `StandupReminder.App/App.xaml.cs` -> `StandupReminder.WinUI` bootstrap/composition
-  - `StandupReminder.App/Services/PostureReminderScheduler.cs` -> mostly `StandupReminder.Core`
-  - `StandupReminder.App/Services/WindowsSessionEventMonitor.cs` -> `StandupReminder.Windows`
-  - `StandupReminder.App/Services/NotifyIconTrayService.cs` -> `StandupReminder.Windows`
-  - `StandupReminder.App/SettingsWindow*` -> `StandupReminder.WinUI`
-  - `StandupReminder.App/StandUpReminderWindow*` -> `StandupReminder.WinUI`
-  - local app data stores -> `StandupReminder.Persistence`
-- If the team wants an even smaller initial cut, `StandupReminder.Windows` and `StandupReminder.Persistence` can temporarily live together in a single `StandupReminder.Infrastructure` project, then be split later only if the codebase grows.
+  - scheduler-engine unit coverage
+- WinUI bootstrap slice is complete:
+  - custom `Program.cs`
+  - `DISABLE_XAML_GENERATED_MAIN`
+  - minimal single-instance startup handling with Windows App SDK lifecycle APIs
+  - WinUI app/window activation bootstrap
+- Reminder-settings persistence slice is complete:
+  - portable reminder settings persistence moved into `src/StandupReminder.Persistence`
+  - WPF updated to consume the shared reminder-settings persistence implementation
+  - WinUI shell now loads and displays persisted reminder schedule values
+  - targeted persistence tests added
 
-### Current-to-target API/platform mapping
+### Current ownership map
+- `StandupReminder.WinUI`
+  - owns the WinUI app entry/bootstrap path and the current shell window
+  - currently displays persisted reminder schedule state
+  - does **not** yet own the live reminder runtime
+- `StandupReminder.Core`
+  - owns reminder domain models, contracts, and scheduler engine/state-machine logic
+- `StandupReminder.Persistence`
+  - owns reminder-settings persistence and the shared settings document for schedule data
+- `StandupReminder.Windows`
+  - project exists but still needs the concrete Windows adapter implementations for the migrated WinUI runtime
+- `StandupReminder.App` (WPF)
+  - still owns the live runtime composition root and most active desktop behavior:
+    - tray integration
+    - session monitoring
+    - runtime scheduler hosting
+    - reminder prompt window
+    - settings window
+    - appearance persistence integration
+    - session-event history persistence
 
-| Current mechanism | Current role | Recommended target | Decision |
-| --- | --- | --- | --- |
-| `App.xaml.cs` WPF startup/composition | Bootstrap, tray, scheduler, main window wiring | WinUI `App.xaml.cs` + custom `Program.cs` + `Microsoft.Windows.AppLifecycle.AppInstance` | Replace with modern Windows App SDK lifecycle |
-| WPF window model (`Window`, `WindowInteropHelper`, `HwndSource.AddHook`) | Native handle access and message hook plumbing | WinUI `Window` + `AppWindow` for normal window management; use HWND interop only where still required | Mostly replace |
-| `WM_WTSSESSION_CHANGE` + `WTSRegisterSessionNotification` | Lock/unlock/logon/logoff session monitoring | First evaluate `Microsoft.Win32.SystemEvents.SessionSwitch`; retain raw WTS path if exact low-level fidelity is needed | Partial modern alternative |
-| `DispatcherTimer` | Scheduler loop timing | `Microsoft.UI.Dispatching.DispatcherQueueTimer` or timer abstraction backed by `DispatcherQueue` | Replace |
-| WinForms `NotifyIcon` / tray menu | Tray icon, context menu, pause/resume/open/settings/exit | Keep compatibility/interop layer (`NotifyIcon` or direct `Shell_NotifyIcon`) because no first-party WinUI tray API was identified | Keep interop |
-| WPF reminder/settings windows | Primary UX surfaces | Rebuild as WinUI windows/pages/dialogs; use `AppWindow`/`OverlappedPresenter` where appropriate | Replace |
-| WinForms `ColorDialog` | Popup appearance editing | Prefer WinUI-native color editing UX (`ColorPicker` or custom editor) | Replace |
-| Ad-hoc top-level window state control | Size/position/presenter behavior | `AppWindow`, `OverlappedPresenter`, `CompactOverlayPresenter`, etc. | Replace where applicable |
-| Tray balloon/system notification assumptions | Reminder/status notifications | Use Windows App SDK app notifications for toast-style notifications where useful, but not as a tray replacement | Supplement only |
+### Migration constraints that still matter
+- Keep WPF behavior working unless a slice explicitly replaces it and is validated.
+- Preserve current local data compatibility where practical; avoid unnecessary schema churn.
+- Keep slices narrow: one ownership move or one runtime integration seam at a time.
+- Prefer abstraction-first moves so WinUI does not take direct dependencies on WinForms or raw Win32 APIs.
 
-### Documentation-grounded replacement notes
-- WinUI apps are multi-instanced by default, so single-instance behavior must be implemented intentionally with `AppInstance.FindOrRegisterForKey`, `IsCurrent`, and `RedirectActivationToAsync`.
-- `AppWindow` is the high-level abstraction over the top-level HWND and should be the default path for size, presenter, title bar, and window state behavior.
-- `SystemEvents.SessionSwitch` is a viable higher-level session event source for lock/unlock/logon/logoff, but it only works with a running message pump and requires explicit unsubscription because it is a static event.
-- `WTSRegisterSessionNotification` remains the authoritative low-level fallback when exact `WM_WTSSESSION_CHANGE` semantics are required.
-- Notification-area tray behavior still roots back to `Shell_NotifyIcon`; no first-party pure WinUI tray primitive was identified in the Microsoft documentation reviewed.
-- Windows App SDK app notifications are useful for toast/notification UX, but they do not replace a tray icon.
-- For modal owner-window scenarios, `AppWindow` helps with top-level windowing, but owner/modality can still require Win32 interop.
+### Current target architecture
+- `src/StandupReminder.WinUI`
+  - WinUI executable shell, app bootstrap, shell viewmodels, WinUI prompt/settings surfaces, and runtime composition once migrated.
+- `src/StandupReminder.Core`
+  - reminder domain, scheduler engine, options/models, and framework-agnostic service contracts.
+- `src/StandupReminder.Windows`
+  - Windows-only adapters such as tray host, session event source, timer glue, and any required HWND/AppWindow interop.
+- `src/StandupReminder.Persistence`
+  - local settings/history storage, document stores, path resolution, and data compatibility helpers.
 
 ## Environment & Configuration Details
 - Workspace/repo: `C:\personal\StandupReminder`
-- Current app type: WPF desktop app targeting `net8.0-windows`
-- Current installer flow: publish output + Inno Setup packaging
-- Current persistence model: per-user local app data for reminder settings, appearance settings, and session-event history
-- Current lifecycle model: tray-first, single-user desktop app, current-session monitoring
-- Recommended migration target:
-  - WinUI 3 desktop app using the Windows App SDK
-  - packaged deployment as the default recommendation
-  - latest stable Windows App SDK version available at implementation start
-- Why packaged is the default recommendation:
-  - cleaner Windows integration through package identity,
-  - simpler notification integration,
-  - fewer runtime-bootstrap concerns than unpackaged deployment,
-  - easier long-term support posture for a modern desktop app.
-- When unpackaged remains acceptable:
-  - if the existing installer/channel must stay MSI/Inno-first,
-  - if package identity is intentionally avoided,
-  - and if the team accepts Windows App SDK bootstrapper/runtime distribution requirements.
+- Current production app shape: WPF desktop app targeting `net8.0-windows`
+- New shell under migration: WinUI 3 desktop app using Windows App SDK
+- Current local data shape:
+  - reminder settings and appearance settings share `%LocalAppData%\StandupReminder\settings.json`
+  - session-event history lives separately under local app data
+- Current lifecycle expectation: tray-first, single-instance, current-user desktop app
+- Packaging direction remains open, but the migration should remain compatible with either:
+  - unpackaged/Inno-based transition periods, or
+  - a later packaged/MSIX target
 
-## Discussion Highlights
+## Remaining Migration Roadmap
 
-### Phase 0 - Confirm architecture direction and success criteria
-- Freeze current behavior as the parity baseline before any rewrite begins.
-- Decide and document:
-  - packaged vs unpackaged target,
-  - whether current-session-only monitoring remains sufficient,
-  - whether the stand-up prompt must remain blocking/owner-bound in the same way,
-  - whether tray-first behavior remains mandatory at launch.
-- Deliverables:
-  - migration RFC/checklist,
-  - feature parity matrix,
-  - risk register.
+### Stage 1 - Introduce WinUI runtime composition without cutting over behavior
+Goal: give the WinUI app a real runtime-composition boundary beyond loading persisted settings.
 
-### Phase 1 - Extract framework-agnostic core logic from WPF assumptions
-- Separate pure reminder domain logic from UI/window concerns.
-- Move scheduler state transitions, settings models, persistence contracts, and session-event translation contracts behind framework-neutral interfaces.
-- Create the new solution/project boundaries early so code is moved into the intended target projects instead of being refactored twice.
-- Define new boundaries such as:
-  - app lifecycle service,
-  - session event source,
-  - tray host,
-  - reminder prompt host,
-  - notification service.
-- Goal: make only the shell and interop layers UI-framework-specific.
+- Add a small WinUI-owned composition service/coordinator that can host migrated runtime pieces.
+- Define how the WinUI shell observes live scheduler state without yet deleting the WPF path.
+- Keep the composition seam explicit so future Windows adapters plug into interfaces rather than directly into views.
 
-### Phase 2 - Create the WinUI 3 shell and lifecycle bootstrap
-- Stand up a new WinUI 3 app project rather than trying to mutate the WPF project in place.
-- Add custom `Program.cs` and disable generated main if single-instance redirection is handled before XAML startup.
-- Implement single-instance behavior using `AppInstance` and activation redirection.
-- Recreate the composition root so services are initialized in WinUI rather than WPF.
-- Exit criteria:
-  - app launches cleanly,
-  - second launch activates existing instance,
-  - no reminder logic yet required beyond shell startup.
+Exit criteria:
+- WinUI bootstrap creates runtime-facing services through a dedicated composition path.
+- The new composition path is isolated enough to accept timer/session/tray/prompt adapters next.
+- WPF continues to run unchanged as the parity baseline until live WinUI runtime behavior is ready.
 
-### Phase 3 - Rebuild tray-first hosting and background interaction model
-- Port `NotifyIconTrayService` into a shell/interop layer owned by the WinUI app.
-- Keep tray behavior behind an interface so the WinUI shell does not depend directly on WinForms or shell APIs.
-- Recreate current menu commands:
-  - Open
-  - Pause timer / Resume timer
-  - Settings
-  - Exit
-- Decide whether to keep WinForms `NotifyIcon` for speed or replace it with a direct `Shell_NotifyIcon` wrapper for tighter control.
-- Recommendation: keep the compatibility layer first, optimize later only if it becomes a maintenance issue.
+### Stage 2 - Implement Windows adapters in `StandupReminder.Windows`
+Goal: move Windows-specific infrastructure behind stable adapter interfaces.
 
-### Phase 4 - Replace session monitoring with a tiered strategy
-- First implementation target: `SystemEvents.SessionSwitch` for lock/unlock/logon/logoff handling in the WinUI desktop process.
-- Build a translation layer from raw session events into the app's existing session event model.
-- Validate parity for:
-  - `SessionLock`
-  - `SessionUnlock`
-  - `SessionLogon`
-  - optionally `SessionLogoff` if useful for persistence/state cleanup.
-- Keep a fallback implementation using `WTSRegisterSessionNotification` if testing shows gaps in timing, fidelity, or activation behavior.
-- Recommendation: design `ISessionEventSource` with at least two implementations:
-  - `SystemEventsSessionEventSource`
-  - `WtsSessionEventSource`
+Recommended order:
+1. timer adapter for WinUI-compatible ticking
+2. session event source
+3. tray host
+4. any owner-window/AppWindow/HWND glue still required for prompt behavior
 
-### Phase 5 - Port the reminder scheduler to WinUI-compatible timing
-- Replace WPF `DispatcherTimer` usage with `DispatcherQueueTimer` or a timer abstraction using `DispatcherQueue`.
-- Preserve the existing state machine semantics:
-  - `Idle`
-  - `SittingCountdown`
-  - `SnoozedCountdown`
-  - `StandingCountdown`
-  - `StandPromptPending`
-  - `PausedForLock`
-  - `PausedManually`
-- Keep the scheduler independent from window classes so prompt display becomes a hosted action rather than direct WPF window manipulation.
-- Exit criteria:
-  - countdowns survive session pause/resume logic,
-  - manual tray pause/resume works,
-  - snooze flow still reopens the prompt correctly.
+Specific work:
+- Add a WinUI/Windows-compatible timer implementation for the scheduler runtime.
+- Implement a session event source with a tiered strategy:
+  - first: `SystemEvents.SessionSwitch`
+  - fallback: `WTSRegisterSessionNotification` if parity requires it
+- Move tray hosting into `StandupReminder.Windows`, keeping the WinUI app dependent only on an abstraction.
+- Isolate all Win32 interop needed for top-level window ownership or activation behavior.
 
-### Phase 6 - Rebuild the reminder and settings UX in WinUI 3
-- Recreate the settings surface using WinUI controls and modern theming.
-- Rebuild the stand-up prompt as a WinUI window/dialog experience.
-- Use `AppWindow` and `OverlappedPresenter` for supported window behavior such as size, placement, and presenter configuration.
-- If true modal owner-window behavior is still required, isolate any HWND owner interop to the window host layer only.
-- Replace the WinForms color picker dependency with WinUI-native UI.
+Exit criteria:
+- WinUI can construct timer/session/tray adapters through `StandupReminder.Windows`.
+- No new direct WinForms/raw-Win32 coupling is introduced into `StandupReminder.WinUI`.
 
-### Phase 7 - Reconnect persistence, appearance, and event history
-- Reuse the existing persistence model and file formats where possible to avoid data migration risk.
-- Port settings/event-history stores with minimal schema change.
-- Verify that existing local app data survives the migration path or create a one-time import path if the app identity/storage location changes.
-- Pay special attention to packaged deployment if local paths or startup behavior differ from today's installer-driven model.
+### Stage 3 - Move live scheduler behavior into WinUI
+Goal: make the WinUI app own the running reminder workflow.
 
-### Phase 8 - Notifications, packaging, startup, and deployment
-- Keep tray icon behavior separate from toast/app notifications.
-- Use Windows App SDK app notifications only where they improve reminder/status UX.
-- Revisit startup enablement strategy:
-  - keep Windows Startup Apps / installer-managed startup behavior, or
-  - adopt packaged-app startup capabilities if they fit the chosen deployment model.
-- Recommendation: if moving to packaged WinUI, reevaluate the entire installer story instead of blindly reusing the current Inno flow.
+- Host the scheduler engine from the WinUI runtime composition path.
+- Connect timer, session, tray, and prompt abstractions to the live WinUI-hosted runtime.
+- Surface live phase/remaining-time state in the WinUI shell.
+- Keep behavior parity with the current WPF runtime:
+  - sitting countdown
+  - stand prompt
+  - snooze path
+  - manual pause/resume
+  - pause/resume for session lock/unlock
 
-### Phase 9 - Validation, cutover, and retirement of WPF app
-- Validate on installed builds, not only F5 debugging sessions.
-- Required validation matrix:
-  - first launch and second-launch single-instance activation,
-  - lock/unlock/logon behavior,
-  - tray menu actions,
-  - snooze flow,
-  - manual pause/resume,
-  - persisted settings reload,
-  - session-event history persistence,
-  - packaged/unpackaged deployment-specific runtime behavior.
-- Final cutover approach:
-  - run WinUI build as side-by-side prerelease,
-  - close parity gaps,
-  - then retire the WPF app after acceptance.
+Exit criteria:
+- WinUI can run the reminder lifecycle end-to-end.
+- WPF is no longer the only runtime composition root.
+- Core behavior remains hosted through abstractions rather than UI-specific logic.
+
+### Stage 4 - Rebuild remaining WPF UX in WinUI
+Goal: replace the last WPF-owned user-facing surfaces.
+
+- Rebuild the settings experience in WinUI.
+- Rebuild the stand-up prompt in WinUI.
+- Replace remaining WPF-specific interaction patterns with WinUI/AppWindow-friendly equivalents.
+- Replace any WinForms-based color editing flow with WinUI-native controls if still applicable.
+
+Notes:
+- If exact owner/modal semantics are needed, keep that interop isolated to a host/adapter layer.
+- Avoid broad UX redesign during parity migration; focus on behavior-preserving replacement first.
+
+Exit criteria:
+- Settings and prompt flows are WinUI-owned.
+- WPF windows are no longer required for primary reminder UX.
+
+### Stage 5 - Finish the remaining persistence migration
+Goal: complete the storage ownership move that is still split between WPF and the new projects.
+
+Remaining likely moves:
+- appearance persistence integration
+- session-event history persistence
+- any local data compatibility/import helpers needed for future packaging changes
+
+Specific checks:
+- preserve the existing shared `settings.json` behavior unless a migration is intentional
+- confirm local app data continuity across any deployment changes
+- keep storage contracts portable and testable
+
+Exit criteria:
+- `StandupReminder.Persistence` owns all local settings/history persistence still needed by the WinUI app.
+- WPF-local persistence ownership is minimized or removed.
+
+### Stage 6 - Packaging, startup strategy, validation, and cutover
+Goal: finish the migration only after the WinUI path is proven outside the development loop.
+
+- Reconfirm packaging direction:
+  - temporary unpackaged/Inno bridge, or
+  - packaged/MSIX-first cutover
+- Revisit startup registration and deployment behavior for the chosen model.
+- Validate the WinUI app in realistic installed-style runs, not just local debugging.
+- Retire WPF only after acceptance criteria are met.
+
+Exit criteria:
+- WinUI feature parity is validated.
+- Deployment/runtime behavior is understood for the chosen packaging model.
+- WPF retirement can happen without losing production behavior.
+
+## Validation Guidance For Remaining Slices
+- Continue validating every migration slice with the smallest useful scope first:
+  - targeted unit tests
+  - project/solution build
+  - solution test pass
+- Add tests whenever logic or persistence ownership moves.
+- Once live WinUI runtime behavior is introduced, expand validation to cover:
+  - first launch / second launch activation
+  - tray menu actions
+  - manual pause/resume
+  - snooze flow
+  - lock/unlock behavior
+  - persisted settings reload
+  - session-event history persistence
+- Before final cutover, validate on installed-style runs rather than only `F5` debugging sessions.
 
 ## Issues, Assumptions & Open Questions
-- Assumption: tray-first behavior remains a hard requirement after migration.
-- Assumption: current-session-only monitoring is still acceptable unless multi-session support is explicitly requested.
-- Assumption: the existing reminder state machine behavior should be preserved before any UX redesign changes are introduced.
-- Assumption: packaged WinUI 3 is preferred unless installer/distribution constraints force unpackaged deployment.
-- Key risk: `SystemEvents.SessionSwitch` is higher-level and simpler, but must be proven equivalent enough for this app's timing and behavior expectations.
-- Key risk: tray support is still interop territory, so the final WinUI app will not be 100% free of Win32/compatibility code.
-- Key risk: if the stand-up prompt depends on exact owner/modal semantics, some HWND interop may remain necessary even after adopting `AppWindow`.
-- Open question: should the migration preserve the current local data files as-is, or intentionally version/migrate them?
-- Open question: should the new WinUI app remain Inno-installed, or should packaging be reworked around MSIX/package identity?
-- Open question: is exact parity for `WM_WTSSESSION_CHANGE` required, or is parity for the app's observable lock/unlock/logon behavior sufficient?
-- Open question: should the migration keep the existing tray icon implementation technology initially for delivery speed?
+- Assumption: tray-first behavior remains mandatory.
+- Assumption: current-session monitoring is sufficient unless a broader requirement appears.
+- Assumption: behavior parity remains higher priority than UX redesign during migration.
+- Assumption: WPF remains the safe fallback until WinUI runtime parity is demonstrated.
+- Key risk: tray support and some window ownership behavior still require compatibility/interop code.
+- Key risk: `SystemEvents.SessionSwitch` may not fully match the fidelity/timing expected from lower-level session notifications.
+- Key risk: packaging choice may affect startup behavior, notification identity, and local data continuity.
+- Open question: should the final release remain compatible with the current Inno-based channel, or should cutover align with MSIX/package identity?
+- Open question: is higher-level observable parity for session behavior sufficient, or is exact low-level `WM_WTSSESSION_CHANGE` parity required?
+- Open question: should the first WinUI runtime slice reuse the existing tray technology behind an adapter for speed, then optimize later?
 
 ## References & Contextual Notes
-- Current implementation files most relevant to migration:
+- Current files most relevant to the remaining migration work:
   - `StandupReminder.App/App.xaml.cs`
   - `StandupReminder.App/Services/WindowsSessionEventMonitor.cs`
   - `StandupReminder.App/Services/NotifyIconTrayService.cs`
   - `StandupReminder.App/Services/PostureReminderScheduler.cs`
   - `StandupReminder.App/StandUpReminderWindow.xaml.cs`
   - `StandupReminder.App/SettingsWindow.xaml.cs`
-- Microsoft documentation used to ground this plan:
-  - App instancing with the app lifecycle API: `https://learn.microsoft.com/windows/apps/windows-app-sdk/applifecycle/applifecycle-instancing`
-  - Create a single-instanced WinUI 3 app with C#: `https://learn.microsoft.com/windows/apps/windows-app-sdk/applifecycle/applifecycle-single-instance`
-  - Manage app windows / `AppWindow`: `https://learn.microsoft.com/windows/apps/develop/ui/manage-app-windows`
+  - `src/StandupReminder.WinUI/App.xaml.cs`
+  - `src/StandupReminder.WinUI/Program.cs`
+  - `src/StandupReminder.WinUI/AppBootstrapper.cs`
+  - `src/StandupReminder.WinUI/ShellViewModel.cs`
+  - `src/StandupReminder.Persistence/LocalAppDataReminderSettingsStore.cs`
+  - `src/StandupReminder.Persistence/LocalAppDataSettingsDocumentStore.cs`
+  - `src/StandupReminder.Core/Services/ReminderSchedulerEngine.cs`
+- Microsoft documentation relevant to the remaining work:
+  - App lifecycle / app instancing: `https://learn.microsoft.com/windows/apps/windows-app-sdk/applifecycle/applifecycle-instancing`
+  - Single-instance WinUI app guidance: `https://learn.microsoft.com/windows/apps/windows-app-sdk/applifecycle/applifecycle-single-instance`
+  - App window management: `https://learn.microsoft.com/windows/apps/develop/ui/manage-app-windows`
   - `SystemEvents.SessionSwitch`: `https://learn.microsoft.com/dotnet/api/microsoft.win32.systemevents.sessionswitch?view=windowsdesktop-10.0`
   - `WTSRegisterSessionNotification`: `https://learn.microsoft.com/windows/win32/api/wtsapi32/nf-wtsapi32-wtsregistersessionnotification`
-  - `WTSUnRegisterSessionNotification`: `https://learn.microsoft.com/windows/win32/api/wtsapi32/nf-wtsapi32-wtsunregistersessionnotification`
   - `WM_WTSSESSION_CHANGE`: `https://learn.microsoft.com/windows/win32/termserv/wm-wtssession-change`
-  - Notification Area guidance / `Shell_NotifyIcon`: `https://learn.microsoft.com/windows/win32/shell/notification-area`
-  - Windows App SDK deployment guide for packaged-with-external-location or unpackaged apps: `https://learn.microsoft.com/windows/apps/windows-app-sdk/deploy-unpackaged-apps`
-  - Windows App SDK app notifications quickstart: `https://learn.microsoft.com/windows/apps/windows-app-sdk/notifications/app-notifications/app-notifications-quickstart`
+  - Notification Area / `Shell_NotifyIcon`: `https://learn.microsoft.com/windows/win32/shell/notification-area`
+  - Windows App SDK unpackaged deployment guidance: `https://learn.microsoft.com/windows/apps/windows-app-sdk/deploy-unpackaged-apps`
+  - App notifications quickstart: `https://learn.microsoft.com/windows/apps/windows-app-sdk/notifications/app-notifications/app-notifications-quickstart`
   - `DispatcherQueueTimer`: `https://learn.microsoft.com/windows/windows-app-sdk/api/winrt/microsoft.ui.dispatching.dispatcherqueuetimer?view=windows-app-sdk-1.8`
-- This file is a planning artifact only; no source migration has been performed yet.

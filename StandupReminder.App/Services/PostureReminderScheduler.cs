@@ -1,7 +1,7 @@
 using System.Windows.Threading;
-using StandupReminder.App.Models;
 using StandupReminder.Core.Models;
 using StandupReminder.Core.Services;
+using StandupReminder.Persistence;
 
 namespace StandupReminder.App.Services;
 
@@ -121,14 +121,9 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private static AppearanceSettings NormalizeAppearanceSettings(AppearanceSettings settings)
     {
-        if (!ColorUtil.TryParseArgbHex(settings.WindowBackgroundArgbHex, out var color))
-        {
-            return new AppearanceSettings();
-        }
-
         return new AppearanceSettings
         {
-            WindowBackgroundArgbHex = ColorUtil.ToArgbHex(color)
+            WindowBackgroundArgbHex = ArgbHexColor.NormalizeOrDefault(settings.WindowBackgroundArgbHex)
         };
     }
 }

@@ -1,8 +1,7 @@
 using System.IO;
 using System.Text.Json;
-using StandupReminder.App.Models;
 
-namespace StandupReminder.App.Services;
+namespace StandupReminder.Persistence;
 
 public sealed class LocalAppDataSessionEventLogStore : ISessionEventLogStore
 {
@@ -13,14 +12,15 @@ public sealed class LocalAppDataSessionEventLogStore : ISessionEventLogStore
 
     private readonly string _logFilePath;
 
-    public LocalAppDataSessionEventLogStore()
+    public LocalAppDataSessionEventLogStore(string? logFilePath = null)
     {
-        var dataDirectory = Path.Combine(
+        _logFilePath = logFilePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "StandupReminder");
-
-        _logFilePath = Path.Combine(dataDirectory, "session-events.json");
+            "StandupReminder",
+            "session-events.json");
     }
+
+    public string LogFilePath => _logFilePath;
 
     public IReadOnlyList<SessionEventLogEntry> Load()
     {

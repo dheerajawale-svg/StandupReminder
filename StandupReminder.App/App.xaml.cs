@@ -1,9 +1,9 @@
 using System.IO;
 using System.Windows;
-using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
 using StandupReminder.Core.Models;
+using StandupReminder.Persistence;
 using Wpf.Ui.Appearance;
 
 namespace StandupReminder.App;

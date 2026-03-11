@@ -1,4 +1,4 @@
-namespace StandupReminder.App.Models;
+namespace StandupReminder.Persistence;
 
 public sealed class AppearanceSettings
 {

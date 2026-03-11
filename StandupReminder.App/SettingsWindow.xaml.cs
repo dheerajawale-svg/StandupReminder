@@ -1,7 +1,7 @@
 using System.Windows;
-using StandupReminder.App.Models;
 using StandupReminder.App.ViewModels;
 using StandupReminder.Core.Models;
+using StandupReminder.Persistence;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using MediaColor = System.Windows.Media.Color;
