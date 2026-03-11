@@ -1,4 +1,5 @@
 using StandupReminder.App.Models;
+using StandupReminder.Core.Models;
 
 namespace StandupReminder.App.Services;
 

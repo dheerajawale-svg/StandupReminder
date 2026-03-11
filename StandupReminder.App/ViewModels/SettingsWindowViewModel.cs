@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using StandupReminder.App.Models;
+using StandupReminder.Core.Models;
 
 namespace StandupReminder.App.ViewModels;
 

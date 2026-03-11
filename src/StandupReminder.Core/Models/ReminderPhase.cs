@@ -1,4 +1,4 @@
-namespace StandupReminder.App.Models;
+namespace StandupReminder.Core.Models;
 
 public enum ReminderPhase
 {

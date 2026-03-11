@@ -1,3 +1,8 @@
 <Solution>
   <Project Path="StandupReminder.App/StandupReminder.App.csproj" />
+  <Project Path="src/StandupReminder.Core/StandupReminder.Core.csproj" />
+  <Project Path="src/StandupReminder.Windows/StandupReminder.Windows.csproj" />
+  <Project Path="src/StandupReminder.Persistence/StandupReminder.Persistence.csproj" />
+  <Project Path="src/StandupReminder.WinUI/StandupReminder.WinUI.csproj" />
+  <Project Path="tests/StandupReminder.Core.Tests/StandupReminder.Core.Tests.csproj" />
 </Solution>

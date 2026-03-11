@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using StandupReminder.App.Models;
 using StandupReminder.App.Services;
+using StandupReminder.Core.Models;
 
 namespace StandupReminder.App.ViewModels;
 

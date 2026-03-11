@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\src\StandupReminder.Core\StandupReminder.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\reminder_17382582.ico" />
     <Resource Include="Assets\reminder_17382582.png" />
   </ItemGroup>

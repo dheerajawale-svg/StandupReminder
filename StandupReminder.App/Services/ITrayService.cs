@@ -1,6 +1,8 @@
+using StandupReminder.Core.Services;
+
 namespace StandupReminder.App.Services;
 
-public interface ITrayService : IDisposable
+public interface ITrayService : IReminderTrayNotifier, IDisposable
 {
     event EventHandler? OpenRequested;
 
@@ -11,12 +13,6 @@ public interface ITrayService : IDisposable
     event EventHandler? ExitRequested;
 
     void Initialize();
-
-    void ShowBalloonTip(string title, string message);
-
-    void ShowPersistentBalloonTip(string title, string message);
-
-    void DismissPersistentBalloonTip();
 
     void SetPauseMenuLabel(bool isPaused);
 
