@@ -162,6 +162,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 TrayHintText = "No time is consumed while the session stays locked.";
                 break;
 
+            case ReminderPhase.PausedManually:
+                CurrentPhaseTitle = "Paused";
+                CurrentPhaseDescription = "The reminder loop is paused from the tray and will stay paused until you choose Resume timer.";
+                PauseStateText = "Paused manually";
+                TrayHintText = "Use the tray menu to resume the current reminder state.";
+                break;
+
             default:
                 CurrentPhaseTitle = "Starting";
                 CurrentPhaseDescription = "Preparing the reminder scheduler.";

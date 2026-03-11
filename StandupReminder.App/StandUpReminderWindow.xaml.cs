@@ -33,6 +33,12 @@ public partial class StandUpReminderWindow : Window
         Close();
     }
 
+    public void DismissForPause()
+    {
+        _allowClose = true;
+        Close();
+    }
+
     public void DismissForShutdown()
     {
         _allowClose = true;

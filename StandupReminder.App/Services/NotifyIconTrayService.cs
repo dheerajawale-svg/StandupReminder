@@ -10,8 +10,11 @@ public sealed class NotifyIconTrayService : ITrayService
 
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ContextMenuStrip _contextMenu;
+    private readonly Forms.ToolStripMenuItem _pauseMenuItem;
 
     public event EventHandler? OpenRequested;
+
+    public event EventHandler? PauseResumeRequested;
 
     public event EventHandler? SettingsRequested;
 
@@ -21,6 +24,8 @@ public sealed class NotifyIconTrayService : ITrayService
     {
         _contextMenu = new Forms.ContextMenuStrip();
         _contextMenu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke(this, EventArgs.Empty));
+        _pauseMenuItem = new Forms.ToolStripMenuItem("Pause timer", null, (_, _) => PauseResumeRequested?.Invoke(this, EventArgs.Empty));
+        _contextMenu.Items.Add(_pauseMenuItem);
         _contextMenu.Items.Add("Settings", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
         _contextMenu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
 
@@ -46,6 +51,11 @@ public sealed class NotifyIconTrayService : ITrayService
         _notifyIcon.BalloonTipTitle = title;
         _notifyIcon.BalloonTipText = message;
         _notifyIcon.ShowBalloonTip(5000);
+    }
+
+    public void SetPauseMenuLabel(bool isPaused)
+    {
+        _pauseMenuItem.Text = isPaused ? "Resume timer" : "Pause timer";
     }
 
     public void UpdateStatus(string statusText)

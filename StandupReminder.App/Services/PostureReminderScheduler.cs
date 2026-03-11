@@ -14,6 +14,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private ReminderPhase _phase = ReminderPhase.Idle;
     private ReminderPhase _phaseBeforePause = ReminderPhase.Idle;
+    private ReminderPhase _phaseBeforeManualPause = ReminderPhase.Idle;
     private DateTimeOffset _phaseEndsAt;
     private TimeSpan _remainingTime = TimeSpan.Zero;
     private StandUpReminderWindow? _promptWindow;
@@ -26,7 +27,9 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     public TimeSpan RemainingTime => _remainingTime < TimeSpan.Zero ? TimeSpan.Zero : _remainingTime;
 
-    public bool IsPaused => _phase == ReminderPhase.PausedForLock;
+    public bool IsPaused => _phase is ReminderPhase.PausedForLock or ReminderPhase.PausedManually;
+
+    public bool IsManuallyPaused => _phase == ReminderPhase.PausedManually;
 
     public PostureReminderScheduler(ReminderScheduleOptions options, AppearanceSettings appearanceSettings, ITrayService trayService)
     {
@@ -49,6 +52,62 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
         _hasStarted = true;
         BeginSittingCountdown(isInitial: true);
+    }
+
+    public void PauseTimer()
+    {
+        if (_phase is ReminderPhase.Idle or ReminderPhase.PausedForLock or ReminderPhase.PausedManually)
+        {
+            return;
+        }
+
+        _phaseBeforeManualPause = _phase;
+
+        switch (_phase)
+        {
+            case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
+            case ReminderPhase.StandingCountdown:
+                CaptureRemainingTime();
+                _timer.Stop();
+                _phase = ReminderPhase.PausedManually;
+                RaiseStateChanged();
+                break;
+
+            case ReminderPhase.StandPromptPending:
+                _remainingTime = TimeSpan.Zero;
+                DismissPromptForPause();
+                _phase = ReminderPhase.PausedManually;
+                RaiseStateChanged();
+                break;
+        }
+    }
+
+    public void ResumeTimer()
+    {
+        if (_phase != ReminderPhase.PausedManually)
+        {
+            return;
+        }
+
+        switch (_phaseBeforeManualPause)
+        {
+            case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
+            case ReminderPhase.StandingCountdown:
+                _phase = _phaseBeforeManualPause;
+                _phaseEndsAt = DateTimeOffset.Now + _remainingTime;
+                _timer.Start();
+                RaiseStateChanged();
+                break;
+
+            case ReminderPhase.StandPromptPending:
+                _phase = ReminderPhase.StandPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowStandPrompt();
+                break;
+        }
     }
 
     public void UpdateOptions(ReminderScheduleOptions options)
@@ -86,7 +145,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     public void HandleSessionLock()
     {
-        if (_phase == ReminderPhase.PausedForLock || _phase == ReminderPhase.Idle)
+        if (_phase is ReminderPhase.PausedForLock or ReminderPhase.PausedManually or ReminderPhase.Idle)
         {
             return;
         }
@@ -245,6 +304,17 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         }
 
         _promptWindow.DismissForLock();
+        _promptWindow = null;
+    }
+
+    private void DismissPromptForPause()
+    {
+        if (_promptWindow is null)
+        {
+            return;
+        }
+
+        _promptWindow.DismissForPause();
         _promptWindow = null;
     }
 

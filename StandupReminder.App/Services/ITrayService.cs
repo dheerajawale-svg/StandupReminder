@@ -4,6 +4,8 @@ public interface ITrayService : IDisposable
 {
     event EventHandler? OpenRequested;
 
+    event EventHandler? PauseResumeRequested;
+
     event EventHandler? SettingsRequested;
 
     event EventHandler? ExitRequested;
@@ -11,6 +13,8 @@ public interface ITrayService : IDisposable
     void Initialize();
 
     void ShowBalloonTip(string title, string message);
+
+    void SetPauseMenuLabel(bool isPaused);
 
     void UpdateStatus(string statusText);
 }

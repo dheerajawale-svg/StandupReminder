@@ -50,12 +50,13 @@ public partial class App : System.Windows.Application
         MainWindow = _mainWindow;
 
         trayService.OpenRequested += (_, _) => _mainWindow.ShowFromTray();
+        trayService.PauseResumeRequested += (_, _) => ToggleManualPause();
         trayService.SettingsRequested += (_, _) => ShowSettingsWindow();
         trayService.ExitRequested += (_, _) => PerformShutdown();
-        scheduler.StateChanged += (_, _) => trayService.UpdateStatus(BuildTrayStatus(scheduler));
+        scheduler.StateChanged += (_, _) => UpdateTrayState(trayService, scheduler);
 
         trayService.Initialize();
-        trayService.UpdateStatus(BuildTrayStatus(scheduler));
+        UpdateTrayState(trayService, scheduler);
 
         _mainWindow.Show();
         scheduler.Start();
@@ -164,14 +165,43 @@ public partial class App : System.Windows.Application
             ReminderPhase.StandingCountdown => "Standing",
             ReminderPhase.StandPromptPending => "Stand-up confirmation",
             ReminderPhase.SnoozedCountdown => "Snoozed",
+            ReminderPhase.PausedManually => "Paused manually",
             ReminderPhase.PausedForLock => "Paused for lock",
             _ => "Starting"
         };
 
-        var remainingLabel = scheduler.Phase == ReminderPhase.StandPromptPending
-            ? "awaiting action"
-            : $"{scheduler.RemainingTime:hh\\:mm\\:ss} remaining";
+        var remainingLabel = scheduler.Phase switch
+        {
+            ReminderPhase.StandPromptPending => "awaiting action",
+            ReminderPhase.PausedManually when scheduler.RemainingTime == TimeSpan.Zero => "paused",
+            _ => $"{scheduler.RemainingTime:hh\\:mm\\:ss} remaining"
+        };
 
         return $"{phaseLabel} - {remainingLabel}";
+    }
+
+    private void ToggleManualPause()
+    {
+        if (_scheduler is null || _trayService is null)
+        {
+            return;
+        }
+
+        if (_scheduler.IsManuallyPaused)
+        {
+            _scheduler.ResumeTimer();
+            _mainWindowViewModel?.LogSystemMessage("Reminder timer resumed from the tray.");
+        }
+        else
+        {
+            _scheduler.PauseTimer();
+            _mainWindowViewModel?.LogSystemMessage("Reminder timer paused from the tray.");
+        }
+    }
+
+    private static void UpdateTrayState(ITrayService trayService, IPostureReminderScheduler scheduler)
+    {
+        trayService.SetPauseMenuLabel(scheduler.IsManuallyPaused);
+        trayService.UpdateStatus(BuildTrayStatus(scheduler));
     }
 }

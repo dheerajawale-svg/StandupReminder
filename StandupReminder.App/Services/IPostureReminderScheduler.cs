@@ -12,7 +12,13 @@ public interface IPostureReminderScheduler : IDisposable
 
     bool IsPaused { get; }
 
+    bool IsManuallyPaused { get; }
+
     void Start();
+
+    void PauseTimer();
+
+    void ResumeTimer();
 
     void UpdateOptions(ReminderScheduleOptions options);
 
