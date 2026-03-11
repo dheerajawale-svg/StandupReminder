@@ -1,3 +1,5 @@
+using System.IO;
+using StandupReminder.Core.Models;
 using StandupReminder.Core.Services;
 using StandupReminder.Persistence;
 
@@ -6,85 +8,172 @@ namespace StandupReminder.WinUI;
 internal sealed class ReminderRuntimeComposition : IDisposable
 {
     private readonly ShellViewModel _shellViewModel;
+    private readonly IReminderSettingsStore _settingsStore;
+    private readonly IAppearanceSettingsStore _appearanceSettingsStore;
     private readonly ReminderSchedulerRuntime _runtime;
     private readonly IReminderTrayHost _trayHost;
     private readonly IReminderSessionEventSource _sessionEventSource;
+    private ReminderScheduleOptions _currentReminderOptions;
+    private AppearanceSettings _currentAppearanceSettings;
 
     public ReminderRuntimeComposition(
         ReminderSettingsLoadResult settingsLoadResult,
+        AppearanceSettings appearanceSettings,
+        IReminderSettingsStore settingsStore,
+        IAppearanceSettingsStore appearanceSettingsStore,
         string settingsFilePath,
         ReminderSchedulerRuntime runtime,
         IReminderTrayHost trayHost,
         IReminderSessionEventSource sessionEventSource)
     {
+        _settingsStore = settingsStore;
+        _appearanceSettingsStore = appearanceSettingsStore;
         _runtime = runtime;
         _trayHost = trayHost;
         _sessionEventSource = sessionEventSource;
+        _currentReminderOptions = CloneOptions(settingsLoadResult.Options);
+        _currentAppearanceSettings = CloneAppearanceSettings(appearanceSettings);
+
         _sessionEventSource.SessionEvent += _runtime.HandleSessionEvent;
-        _shellViewModel = new ShellViewModel(settingsLoadResult.Options, settingsLoadResult.WarningMessage, settingsFilePath, runtime);
+        _trayHost.OpenRequested += OnTrayOpenRequested;
+        _trayHost.PauseResumeRequested += OnTrayPauseResumeRequested;
+        _trayHost.SettingsRequested += OnTraySettingsRequested;
+        _trayHost.ExitRequested += OnTrayExitRequested;
+        _runtime.StateChanged += OnRuntimeStateChanged;
+
+        _shellViewModel = new ShellViewModel(_currentReminderOptions, settingsLoadResult.WarningMessage, settingsFilePath, runtime);
+
+        _trayHost.Initialize();
+        UpdateTrayState();
         _runtime.Start();
     }
+
+    public event EventHandler? WindowActivationRequested;
+
+    public event EventHandler? SettingsRequested;
+
+    public event EventHandler? ShutdownRequested;
 
     public MainWindow CreateMainWindow()
     {
         return new MainWindow(_shellViewModel);
     }
 
+    public SettingsWindowViewModel CreateSettingsViewModel()
+    {
+        return new SettingsWindowViewModel(_currentReminderOptions, _currentAppearanceSettings);
+    }
+
+    public string? SaveSettings(ReminderScheduleOptions options, AppearanceSettings appearanceSettings)
+    {
+        try
+        {
+            _settingsStore.Save(options);
+            _appearanceSettingsStore.Save(appearanceSettings);
+            _currentReminderOptions = CloneOptions(options);
+            _currentAppearanceSettings = CloneAppearanceSettings(appearanceSettings);
+            _runtime.UpdateOptions(_currentReminderOptions);
+            _runtime.UpdatePromptBackground(_currentAppearanceSettings.WindowBackgroundArgbHex);
+            _shellViewModel.UpdateSettings(_currentReminderOptions);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"Could not save reminder settings. {ex.Message}";
+        }
+    }
+
     public void Dispose()
     {
+        _trayHost.OpenRequested -= OnTrayOpenRequested;
+        _trayHost.PauseResumeRequested -= OnTrayPauseResumeRequested;
+        _trayHost.SettingsRequested -= OnTraySettingsRequested;
+        _trayHost.ExitRequested -= OnTrayExitRequested;
+        _runtime.StateChanged -= OnRuntimeStateChanged;
         _sessionEventSource.SessionEvent -= _runtime.HandleSessionEvent;
+
         _sessionEventSource.Dispose();
         _shellViewModel.Dispose();
         _runtime.Dispose();
         _trayHost.Dispose();
     }
-}
 
-internal sealed class NullReminderPromptHost : IReminderPromptHost
-{
-    public event EventHandler? Confirmed
+    private void OnTrayOpenRequested(object? sender, EventArgs e)
     {
-        add { }
-        remove { }
+        WindowActivationRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    public event EventHandler? Snoozed
+    private void OnTrayPauseResumeRequested(object? sender, EventArgs e)
     {
-        add { }
-        remove { }
+        if (_runtime.IsManuallyPaused)
+        {
+            _runtime.ResumeTimer();
+        }
+        else
+        {
+            _runtime.PauseTimer();
+        }
     }
 
-    public bool IsVisible => false;
-
-    public void Show(TimeSpan standDuration, string backgroundArgbHex)
+    private void OnTraySettingsRequested(object? sender, EventArgs e)
     {
-        _ = standDuration;
-        _ = backgroundArgbHex;
+        SettingsRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Activate()
+    private void OnTrayExitRequested(object? sender, EventArgs e)
     {
+        ShutdownRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    public void UpdateStandDuration(TimeSpan standDuration)
+    private void OnRuntimeStateChanged(object? sender, EventArgs e)
     {
-        _ = standDuration;
+        UpdateTrayState();
     }
 
-    public void UpdateBackground(string backgroundArgbHex)
+    private void UpdateTrayState()
     {
-        _ = backgroundArgbHex;
+        _trayHost.SetPauseMenuLabel(_runtime.IsManuallyPaused);
+        _trayHost.UpdateStatus(BuildTrayStatus());
     }
 
-    public void DismissForLock()
+    private string BuildTrayStatus()
     {
+        var phaseLabel = _runtime.Phase switch
+        {
+            ReminderPhase.SittingCountdown => "Sitting",
+            ReminderPhase.StandingCountdown => "Standing",
+            ReminderPhase.StandPromptPending => "Stand-up confirmation",
+            ReminderPhase.SnoozedCountdown => "Snoozed",
+            ReminderPhase.PausedManually => "Paused manually",
+            ReminderPhase.PausedForLock => "Paused for lock",
+            _ => "Starting"
+        };
+
+        var remainingLabel = _runtime.Phase switch
+        {
+            ReminderPhase.StandPromptPending => "awaiting action",
+            ReminderPhase.PausedManually when _runtime.RemainingTime == TimeSpan.Zero => "paused",
+            _ => $"{_runtime.RemainingTime:hh\\:mm\\:ss} remaining"
+        };
+
+        return $"{phaseLabel} - {remainingLabel}";
     }
 
-    public void DismissForPause()
+    private static ReminderScheduleOptions CloneOptions(ReminderScheduleOptions options)
     {
+        return new ReminderScheduleOptions
+        {
+            InitialSit = options.InitialSit,
+            RecurringSit = options.RecurringSit,
+            Stand = options.Stand
+        };
     }
 
-    public void DismissForShutdown()
+    private static AppearanceSettings CloneAppearanceSettings(AppearanceSettings appearanceSettings)
     {
+        return new AppearanceSettings
+        {
+            WindowBackgroundArgbHex = ArgbHexColor.NormalizeOrDefault(appearanceSettings.WindowBackgroundArgbHex)
+        };
     }
 }

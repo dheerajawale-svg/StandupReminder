@@ -1,0 +1,126 @@
+<Window
+    x:Class="StandupReminder.WinUI.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Reminder settings">
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0">
+            <StackPanel Padding="20" Spacing="20">
+                <StackPanel Spacing="8">
+                    <TextBlock FontSize="28" FontWeight="SemiBold" Text="Reminder settings" />
+                    <TextBlock Opacity="0.75" Text="Update reminder intervals in whole minutes and customize the stand-up popup background." TextWrapping="WrapWholeWords" />
+                </StackPanel>
+
+                <Border Padding="18" Background="#0D808080" BorderBrush="#33808080" BorderThickness="1" CornerRadius="12">
+                    <StackPanel Spacing="16">
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Reminder intervals" />
+
+                        <StackPanel Spacing="6">
+                            <TextBlock FontWeight="SemiBold" Text="Initial sit interval (minutes)" />
+                            <TextBlock Opacity="0.75" Text="Used once after the scheduler starts." TextWrapping="WrapWholeWords" />
+                            <TextBox Height="36" Text="{x:Bind ViewModel.InitialSitMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock FontWeight="SemiBold" Text="Recurring sit interval (minutes)" />
+                            <TextBlock Opacity="0.75" Text="Used for every sit countdown after the first cycle." TextWrapping="WrapWholeWords" />
+                            <TextBox Height="36" Text="{x:Bind ViewModel.RecurringSitMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock FontWeight="SemiBold" Text="Stand interval (minutes)" />
+                            <TextBlock Opacity="0.75" Text="Used after you confirm the stand-up reminder." TextWrapping="WrapWholeWords" />
+                            <TextBox Height="36" Text="{x:Bind ViewModel.StandMinutes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Padding="18" Background="#0D808080" BorderBrush="#33808080" BorderThickness="1" CornerRadius="12">
+                    <StackPanel Spacing="16">
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Appearance" />
+                        <TextBlock Opacity="0.75" Text="Customize the stand-up popup background using ARGB hex, channel sliders, or the native WinUI color picker." TextWrapping="WrapWholeWords" />
+
+                        <InfoBar x:Name="ColorValidationInfoBar" Title="Invalid color" Severity="Error" IsOpen="False" IsClosable="False" />
+
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border x:Name="BackgroundPreviewBorder" Width="40" Height="40" CornerRadius="8" BorderBrush="#66808080" BorderThickness="1" />
+
+                            <StackPanel Grid.Column="1" Spacing="6">
+                                <TextBlock Text="Popup background color (ARGB hex)" />
+                                <TextBox x:Name="BackgroundHexTextBox" TextChanged="OnBackgroundHexTextChanged" />
+                            </StackPanel>
+
+                            <Button x:Name="BackgroundColorPickerButton" Grid.Column="2" VerticalAlignment="Bottom" Click="OnPickBackgroundColorClick" Content="Pick…">
+                                <Button.Flyout>
+                                    <Flyout x:Name="BackgroundColorPickerFlyout">
+                                        <StackPanel Width="320" Spacing="12">
+                                            <ColorPicker x:Name="BackgroundColorPicker" IsAlphaEnabled="True" IsColorChannelTextInputVisible="False" IsHexInputVisible="False" />
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Click="OnConfirmColorPickerClick" Content="OK" />
+                                                <Button Grid.Column="1" Click="OnCancelColorPickerClick" Content="Cancel" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                        </Grid>
+
+                        <TextBlock Opacity="0.75" Text="The alpha channel controls popup transparency. This affects only the stand-up reminder popup background." TextWrapping="WrapWholeWords" />
+
+                        <Grid RowSpacing="12" ColumnSpacing="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="48" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="A" />
+                            <Slider x:Name="AlphaSlider" Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="255" StepFrequency="1" SmallChange="1" LargeChange="16" ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock x:Name="AlphaValueTextBlock" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="R" />
+                            <Slider x:Name="RedSlider" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="255" StepFrequency="1" SmallChange="1" LargeChange="16" ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock x:Name="RedValueTextBlock" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="G" />
+                            <Slider x:Name="GreenSlider" Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="255" StepFrequency="1" SmallChange="1" LargeChange="16" ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock x:Name="GreenValueTextBlock" Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="B" />
+                            <Slider x:Name="BlueSlider" Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="255" StepFrequency="1" SmallChange="1" LargeChange="16" ValueChanged="OnBackgroundChannelChanged" />
+                            <TextBlock x:Name="BlueValueTextBlock" Grid.Row="3" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Foreground="#C42B1C" Text="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" TextWrapping="WrapWholeWords" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Margin="20" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="12">
+            <Button Width="100" Click="OnCancelClicked" Content="Cancel" />
+            <Button Width="100" Click="OnSaveClicked" Content="Save" Style="{StaticResource AccentButtonStyle}" />
+        </StackPanel>
+    </Grid>
+</Window>

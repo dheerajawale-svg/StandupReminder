@@ -8,6 +8,9 @@ namespace StandupReminder.WinUI;
 public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ReminderSchedulerRuntime _runtime;
+    private string _initialSitDisplay = string.Empty;
+    private string _recurringSitDisplay = string.Empty;
+    private string _standDisplay = string.Empty;
     private string _runtimePhaseDisplay = string.Empty;
     private string _runtimeStatusMessage = string.Empty;
     private string _remainingTimeDisplay = string.Empty;
@@ -23,9 +26,7 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
             ? "The WinUI shell is now creating a live reminder runtime through an explicit composition seam."
             : warningMessage;
         SettingsFilePath = settingsFilePath;
-        InitialSitDisplay = $"Initial sit interval: {FormatDuration(options.InitialSit)}";
-        RecurringSitDisplay = $"Recurring sit interval: {FormatDuration(options.RecurringSit)}";
-        StandDisplay = $"Stand duration: {FormatDuration(options.Stand)}";
+        ApplyOptions(options);
         _runtime.StateChanged += OnRuntimeStateChanged;
         ApplyRuntimeState();
     }
@@ -38,11 +39,23 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
 
     public string SettingsFilePath { get; }
 
-    public string InitialSitDisplay { get; }
+    public string InitialSitDisplay
+    {
+        get => _initialSitDisplay;
+        private set => SetProperty(ref _initialSitDisplay, value);
+    }
 
-    public string RecurringSitDisplay { get; }
+    public string RecurringSitDisplay
+    {
+        get => _recurringSitDisplay;
+        private set => SetProperty(ref _recurringSitDisplay, value);
+    }
 
-    public string StandDisplay { get; }
+    public string StandDisplay
+    {
+        get => _standDisplay;
+        private set => SetProperty(ref _standDisplay, value);
+    }
 
     public string RuntimePhaseDisplay
     {
@@ -68,7 +81,12 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
         private set => SetProperty(ref _timerAdapterDisplay, value);
     }
 
-    public string RemainingMigrationNote => "Tray, session, and prompt adapters still remain to be moved into this shell.";
+    public string RemainingMigrationNote => "Tray, session, stand-up prompt, and settings adapters are now wired into the WinUI runtime composition. WPF remains available only as the fallback/reference implementation while parity is validated.";
+
+    public void UpdateSettings(ReminderScheduleOptions options)
+    {
+        ApplyOptions(options);
+    }
 
     public void Dispose()
     {
@@ -87,12 +105,12 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
         RuntimePhaseDisplay = $"Runtime phase: {FormatPhase(_runtime.Phase)}";
         RuntimeStatusMessage = _runtime.Phase switch
         {
-            ReminderPhase.SittingCountdown => "The live scheduler is running inside the WinUI composition seam.",
-            ReminderPhase.StandingCountdown => "The live scheduler has transitioned into the standing interval.",
-            ReminderPhase.StandPromptPending => "The scheduler reached the stand prompt boundary, but prompt/tray adapters are still pending.",
-            ReminderPhase.SnoozedCountdown => "The live scheduler is tracking the snooze countdown inside the WinUI shell.",
-            ReminderPhase.PausedManually => "The scheduler is paused manually. Tray command wiring remains pending in WinUI.",
-            ReminderPhase.PausedForLock => "The scheduler is paused for session lock. Session event wiring remains pending in WinUI.",
+            ReminderPhase.SittingCountdown => "Sitting countdown is active. The scheduler is running inside the WinUI composition seam.",
+            ReminderPhase.StandingCountdown => "Standing interval is active.",
+            ReminderPhase.StandPromptPending => "Time to stand up! The stand-up prompt window should now be visible.",
+            ReminderPhase.SnoozedCountdown => "Snooze countdown is active.",
+            ReminderPhase.PausedManually => "Paused manually. Use the tray menu to resume.",
+            ReminderPhase.PausedForLock => "Paused for session lock. Will resume on unlock.",
             _ => "The runtime is waiting for the first scheduled phase."
         };
         RemainingTimeDisplay = _runtime.Phase == ReminderPhase.StandPromptPending
@@ -101,6 +119,13 @@ public sealed class ShellViewModel : INotifyPropertyChanged, IDisposable
         TimerAdapterDisplay = _runtime.IsTimerRunning
             ? "Timer adapter: StandupReminder.Windows is driving runtime ticks."
             : "Timer adapter: idle until the runtime re-enters a timed phase.";
+    }
+
+    private void ApplyOptions(ReminderScheduleOptions options)
+    {
+        InitialSitDisplay = $"Initial sit interval: {FormatDuration(options.InitialSit)}";
+        RecurringSitDisplay = $"Recurring sit interval: {FormatDuration(options.RecurringSit)}";
+        StandDisplay = $"Stand duration: {FormatDuration(options.Stand)}";
     }
 
     private static string FormatDuration(TimeSpan duration)

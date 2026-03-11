@@ -45,10 +45,18 @@ internal sealed class AppBootstrapper
             settingsLoadResult.Options,
             appearanceSettings.WindowBackgroundArgbHex,
             trayHost,
-            new NullReminderPromptHost(),
+            new StandUpReminderPromptHost(),
             _tickSourceFactory());
         var sessionEventSource = _sessionEventSourceFactory();
 
-        return new ReminderRuntimeComposition(settingsLoadResult, _settingsStore.SettingsFilePath, runtime, trayHost, sessionEventSource);
+        return new ReminderRuntimeComposition(
+            settingsLoadResult,
+            appearanceSettings,
+            _settingsStore,
+            _appearanceSettingsStore,
+            _settingsStore.SettingsFilePath,
+            runtime,
+            trayHost,
+            sessionEventSource);
     }
 }
