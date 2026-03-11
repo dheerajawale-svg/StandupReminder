@@ -83,6 +83,7 @@ public partial class App : System.Windows.Application
         }
 
         _isShuttingDown = true;
+        _trayService?.DismissPersistentBalloonTip();
 
         if (_mainWindow is not null)
         {

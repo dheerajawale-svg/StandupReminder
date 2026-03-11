@@ -267,6 +267,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         {
             case ReminderPhase.SittingCountdown:
             case ReminderPhase.SnoozedCountdown:
+                _trayService.DismissPersistentBalloonTip();
                 _phase = ReminderPhase.StandPromptPending;
                 _remainingTime = TimeSpan.Zero;
                 RaiseStateChanged();
@@ -274,7 +275,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 break;
 
             case ReminderPhase.StandingCountdown:
-                _trayService.ShowBalloonTip("Time to sit", "Your standing interval is done. The next sitting timer has started.");
+                _trayService.ShowPersistentBalloonTip("Time to sit", "Your standing interval is done. The next sitting timer has started.");
                 BeginSittingCountdown(isInitial: false);
                 break;
         }

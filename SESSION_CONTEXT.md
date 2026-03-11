@@ -10,6 +10,8 @@
 - Add a configurable color palette for the stand-up popup background by reusing BlinkReminder's ARGB color editing approach.
 - Keep appearance concerns separated from reminder timing by introducing a dedicated `AppearanceSettings` model/store.
 - Restrict the new appearance customization to the stand-up popup window only, while preserving the current default popup color.
+- Add a manual `Pause timer` / `Resume timer` action to the tray menu so the reminder loop can be paused independently of Windows lock state.
+- Give the installer a dark branded first-run experience using native Inno Setup wizard theming and artwork branded as `Apps By Dheeraj`.
 
 ## Key Technical Context
 - Session detection uses `WM_WTSSESSION_CHANGE` with `WTSRegisterSessionNotification`.
@@ -46,14 +48,21 @@
 - `Stand = 20 minutes`
 - The stand-up reminder now includes a fixed `5 minute` snooze path implemented in the scheduler, without adding a persisted setting.
 - `ReminderPhase` now includes `SnoozedCountdown` so the dashboard and tray status can distinguish a deferred stand-up reminder from the normal sitting interval.
+- `ReminderPhase` now also includes `PausedManually` so manual tray pause is distinct from session-lock pause.
 - The main window no longer shows a separate `Reminder Transitions` panel.
 - Windows session events are now persisted per user in `%LocalAppData%\StandupReminder\session-events.json` via `LocalAppDataSessionEventLogStore`.
 - The dashboard shows only the Windows session event feed, trimmed to the last 48 hours and preserved across app restarts.
+- `IPostureReminderScheduler` now supports manual tray control through `PauseTimer()`, `ResumeTimer()`, and `IsManuallyPaused`.
+- `ITrayService` now exposes a pause/resume tray action and supports toggling the menu label between `Pause timer` and `Resume timer`.
+- Manual pause is indefinite, session-only, preserves the current remaining duration, and resumes only when triggered from the tray.
+- If the stand-up prompt is visible when manually paused, the prompt is dismissed and re-opened when the user resumes the timer.
+- The Inno Setup installer now uses `WizardStyle=modern dark`, `WelcomeLabel1=Apps By Dheeraj`, and custom wizard bitmap assets under `Installer\Assets`.
+- The installer branding assets are `Installer\Assets\wizard-side-dark.bmp` and `Installer\Assets\wizard-small-dark.bmp`.
 
 ## Environment & Configuration Details
 - Workspace: `C:\personal\StandupReminder`
 - OS/Shell context: Windows PowerShell
-- Current session date context for this summary update: `2026-03-10`
+- Current session date context for this summary update: `2026-03-11`
 - Earlier project setup session date context recorded in the repo: `2026-03-07`
 - .NET SDK detected during prior setup: `10.0.103`
 - Read-only reference app used for this session's analysis: `C:\personal\BlinkReminder\BlinkReminder`
@@ -67,6 +76,9 @@
 - publish output: `C:\personal\StandupReminder\artifacts\publish\StandupReminder\`
 - Inno Setup script: `C:\personal\StandupReminder\Installer\StandupReminder.iss`
 - installer output: `C:\personal\StandupReminder\artifacts\installer\StandupReminder-Setup.exe`
+- installer branding assets:
+- `C:\personal\StandupReminder\Installer\Assets\wizard-side-dark.bmp`
+- `C:\personal\StandupReminder\Installer\Assets\wizard-small-dark.bmp`
 - Installer characteristics:
 - per-user install
 - install path under `%LocalAppData%\Programs\StandupReminder`
@@ -74,6 +86,7 @@
 - optional desktop shortcut
 - writes `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\StandupReminder`
 - removes that value on uninstall
+- uses native Inno Setup dark modern wizard styling with custom welcome/header artwork and welcome text branded as `Apps By Dheeraj`
 
 ## Discussion Highlights
 - Initial scaffold/build work required a few escalated `dotnet` operations because of sandbox restrictions.
@@ -116,6 +129,15 @@
 - `PostureReminderScheduler` and `App.xaml.cs` were updated to load, save, pass, and live-update popup appearance settings.
 - Validation in this session used `dotnet build .\StandupReminder.App\StandupReminder.App.csproj`; the first build exposed an ambiguous `Color` reference in `ColorUtil.cs`, which was fixed by aliasing WPF media types.
 - After that fix, the project build succeeded with `0` warnings and `0` errors.
+- The tray menu now includes a top-level `Pause timer` / `Resume timer` toggle instead of being limited to `Open`, `Settings`, and `Exit`.
+- The scheduler was extended with explicit manual pause/resume support so tray pause is separate from lock-based pause and does not resume automatically on unlock.
+- Manual pause now works for sitting, standing, snoozed, and stand-prompt states; pausing while the stand-up prompt is visible dismisses it and resuming reopens it.
+- `App.xaml.cs`, `NotifyIconTrayService`, `PostureReminderScheduler`, `ReminderPhase`, `ITrayService`, `IPostureReminderScheduler`, `MainWindowViewModel`, and `StandUpReminderWindow` were updated together so tray labels, dashboard state, and prompt behavior stay consistent.
+- `dotnet build .\StandupReminder.slnx` succeeded with `0` warnings and `0` errors after the manual pause/resume implementation.
+- The installer branding flow was updated to use native Inno Setup dark wizard theming rather than a custom pre-wizard splash implementation.
+- `Installer\StandupReminder.iss` was updated to use `WizardStyle=modern dark`, `WizardImageFile`, `WizardSmallImageFile`, and welcome text branded as `Apps By Dheeraj`.
+- New installer artwork assets were generated under `Installer\Assets` from the existing app branding to provide a dark charcoal/blue branded intro screen.
+- `C:\Program Files (x86)\Inno Setup 6\ISCC.exe .\Installer\StandupReminder.iss` succeeded with Inno Setup `6.7.1` after the dark-branding changes and rebuilt `artifacts\installer\StandupReminder-Setup.exe`.
 
 ## Issues, Assumptions & Open Questions
 - Resolved issue: legacy `Wpf.Ui`/`WPF.UI` package confusion. The active package remains `WPF-UI` `4.2.0`.
@@ -126,13 +148,17 @@
 - Assumption: reminder settings are intentionally per-user in `LocalAppData`, matching the tray app's current user-scoped behavior.
 - Assumption: settings changes should not reset an active countdown; they apply on the next applicable phase transition.
 - Assumption: snooze is intentionally a fixed non-configurable `5 minute` delay and does not change `settings.json` or `ReminderScheduleOptions`.
+- Assumption: manual tray pause is intentionally indefinite, is not persisted across restarts, and resumes only from the tray action.
 - Assumption: popup background appearance remains intentionally limited to the stand-up reminder window and should not spill over into `MainWindow` or `SettingsWindow` theming.
 - Assumption: BlinkReminder continues to be read-only reference context and must not be modified while borrowing its logic patterns.
+- Assumption: installer branding should remain a native Inno Setup welcome-page treatment, not a custom timed pre-wizard splash or external bootstrapper.
 - Current known issue for future debugging:
 - the installed build was previously reported to stop or crash around the reminder stage during a manual installed-app test
 - the exact root cause in the installed/non-VS scenario remains unconfirmed after the later reminder-window fix
 - Open question: manual end-to-end verification of the new snooze flow is still pending for prompt display, snooze expiry, and lock/unlock resume behavior.
 - Open question: manual smoke verification of the new popup appearance workflow is still pending for save/reload behavior, invalid color handling, and live prompt background updates.
+- Open question: manual tray verification of the new `Pause timer` / `Resume timer` flow is still pending for countdown freeze/resume, stand-prompt pause/resume, and lock/unlock interaction while manually paused.
+- Open question: visual/manual verification of the new dark Inno Setup branding is still pending for normal DPI/high DPI rendering and final welcome-page appearance.
 - Open question: whether the current `2 minute` defaults should remain a debug-only choice or be moved behind an explicit development configuration.
 - Open question: whether to support all sessions (`NOTIFY_FOR_ALL_SESSIONS`) instead of current-session-only registration.
 
@@ -158,11 +184,15 @@
 - `C:\personal\StandupReminder\StandupReminder.App\Models\ReminderScheduleOptions.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Models\SessionEventLogEntry.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\Services\NotifyIconTrayService.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\ITrayService.cs`
+- `C:\personal\StandupReminder\StandupReminder.App\Services\IPostureReminderScheduler.cs`
 - `C:\personal\StandupReminder\StandupReminder.App\StandUpReminderWindow.xaml`
 - `C:\personal\StandupReminder\StandupReminder.App\StandUpReminderWindow.xaml.cs`
 - Packaging-related files:
 - `C:\personal\StandupReminder\StandupReminder.App\Properties\PublishProfiles\FolderProfile.pubxml`
 - `C:\personal\StandupReminder\Installer\StandupReminder.iss`
+- `C:\personal\StandupReminder\Installer\Assets\wizard-side-dark.bmp`
+- `C:\personal\StandupReminder\Installer\Assets\wizard-small-dark.bmp`
 - `C:\personal\StandupReminder\.gitignore`
 - Verification completed across sessions:
 - `dotnet build StandupReminder.slnx` succeeded after major refactors
@@ -171,6 +201,8 @@
 - `dotnet build StandupReminder.slnx` also succeeded after the icon, settings, and persisted session-event-history changes
 - `dotnet build StandupReminder.slnx` succeeded after adding the stand-up snooze flow and `SnoozedCountdown` state
 - `dotnet build .\StandupReminder.App\StandupReminder.App.csproj` succeeded after the popup appearance customization changes
+- `dotnet build .\StandupReminder.slnx` succeeded after adding manual tray pause/resume support
+- `C:\Program Files (x86)\Inno Setup 6\ISCC.exe .\Installer\StandupReminder.iss` succeeded with Inno Setup `6.7.1` after adding dark-branded wizard assets and welcome text
 - Output artifact produced:
 - `C:\personal\StandupReminder\artifacts\installer\StandupReminder-Setup.exe`
 - External references used during the project:

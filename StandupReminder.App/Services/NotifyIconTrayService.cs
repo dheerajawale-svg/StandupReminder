@@ -7,10 +7,15 @@ namespace StandupReminder.App.Services;
 public sealed class NotifyIconTrayService : ITrayService
 {
     private const int MaxTooltipLength = 63;
+    private const int BalloonTipTimeoutMilliseconds = 5000;
+    private const int PersistentBalloonIntervalMilliseconds = 10000;
 
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ContextMenuStrip _contextMenu;
     private readonly Forms.ToolStripMenuItem _pauseMenuItem;
+    private readonly Forms.Timer _persistentBalloonTimer;
+    private string? _persistentBalloonTitle;
+    private string? _persistentBalloonMessage;
 
     public event EventHandler? OpenRequested;
 
@@ -37,7 +42,14 @@ public sealed class NotifyIconTrayService : ITrayService
             Visible = false
         };
 
+        _persistentBalloonTimer = new Forms.Timer
+        {
+            Interval = PersistentBalloonIntervalMilliseconds
+        };
+
         _notifyIcon.MouseClick += OnNotifyIconMouseClick;
+        _notifyIcon.BalloonTipClicked += OnBalloonTipClicked;
+        _persistentBalloonTimer.Tick += OnPersistentBalloonTimerTick;
     }
 
     public void Initialize()
@@ -50,7 +62,24 @@ public sealed class NotifyIconTrayService : ITrayService
         _notifyIcon.BalloonTipIcon = Forms.ToolTipIcon.Info;
         _notifyIcon.BalloonTipTitle = title;
         _notifyIcon.BalloonTipText = message;
-        _notifyIcon.ShowBalloonTip(5000);
+        _notifyIcon.ShowBalloonTip(BalloonTipTimeoutMilliseconds);
+    }
+
+    public void ShowPersistentBalloonTip(string title, string message)
+    {
+        _persistentBalloonTitle = title;
+        _persistentBalloonMessage = message;
+
+        ShowBalloonTip(title, message);
+        _persistentBalloonTimer.Stop();
+        _persistentBalloonTimer.Start();
+    }
+
+    public void DismissPersistentBalloonTip()
+    {
+        _persistentBalloonTimer.Stop();
+        _persistentBalloonTitle = null;
+        _persistentBalloonMessage = null;
     }
 
     public void SetPauseMenuLabel(bool isPaused)
@@ -68,6 +97,10 @@ public sealed class NotifyIconTrayService : ITrayService
 
     public void Dispose()
     {
+        DismissPersistentBalloonTip();
+        _persistentBalloonTimer.Tick -= OnPersistentBalloonTimerTick;
+        _persistentBalloonTimer.Dispose();
+        _notifyIcon.BalloonTipClicked -= OnBalloonTipClicked;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _contextMenu.Dispose();
@@ -81,6 +114,29 @@ public sealed class NotifyIconTrayService : ITrayService
         {
             OpenRequested?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private void OnBalloonTipClicked(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        DismissPersistentBalloonTip();
+    }
+
+    private void OnPersistentBalloonTimerTick(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        if (string.IsNullOrWhiteSpace(_persistentBalloonTitle)
+            || string.IsNullOrWhiteSpace(_persistentBalloonMessage))
+        {
+            DismissPersistentBalloonTip();
+            return;
+        }
+
+        ShowBalloonTip(_persistentBalloonTitle, _persistentBalloonMessage);
     }
 
     private static Icon LoadApplicationIcon()

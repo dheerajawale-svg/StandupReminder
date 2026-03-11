@@ -20,7 +20,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma
 SolidCompression=yes
-WizardStyle=modern
+WizardStyle=modern dark
+WizardImageFile=Installer\Assets\wizard-side-dark.bmp
+WizardSmallImageFile=Installer\Assets\wizard-small-dark.bmp
 SetupIconFile=StandupReminder.App\Assets\reminder_17382582.ico
 OutputDir=artifacts\installer
 OutputBaseFilename=StandupReminder-Setup
@@ -43,4 +45,5 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Messages]
+WelcomeLabel1=Apps By Dheeraj
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nStandupReminder is configured to start automatically with Windows by default. You can change this later from Windows Startup Apps.
