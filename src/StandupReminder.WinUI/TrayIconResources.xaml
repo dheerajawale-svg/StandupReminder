@@ -6,55 +6,18 @@
     <XamlUICommand
         x:Key="OpenTrayCommand"
         Description="Open the dashboard"
-        Label="Open">
-        <XamlUICommand.IconSource>
-            <SymbolIconSource Symbol="OpenPane" />
-        </XamlUICommand.IconSource>
-    </XamlUICommand>
+        Label="Open" />
 
     <XamlUICommand
-        x:Key="PauseResumeTrayCommand"
-        Description="Pause or resume the timer"
-        Label="Pause timer">
-        <XamlUICommand.IconSource>
-            <SymbolIconSource Symbol="Pause" />
-        </XamlUICommand.IconSource>
-    </XamlUICommand>
-
-    <XamlUICommand
-        x:Key="SettingsTrayCommand"
-        Description="Open settings"
-        Label="Settings">
-        <XamlUICommand.IconSource>
-            <SymbolIconSource Symbol="Setting" />
-        </XamlUICommand.IconSource>
-    </XamlUICommand>
-
-    <XamlUICommand
-        x:Key="ExitTrayCommand"
-        Description="Exit the application"
-        Label="Exit">
-        <XamlUICommand.IconSource>
-            <SymbolIconSource Symbol="ClosePane" />
-        </XamlUICommand.IconSource>
-    </XamlUICommand>
+        x:Key="ShowTrayMenuCommand"
+        Description="Open the tray menu"
+        Label="Show tray menu" />
 
     <tb:TaskbarIcon
         x:Key="TrayIcon"
-        ContextMenuMode="SecondWindow"
-        IconSource="\Assets\reminder_17382582.ico"
         LeftClickCommand="{StaticResource OpenTrayCommand}"
         NoLeftClickDelay="True"
+        RightClickCommand="{StaticResource ShowTrayMenuCommand}"
         ToolTipText="Standup Reminder"
-        Visibility="Visible">
-        <tb:TaskbarIcon.ContextFlyout>
-            <MenuFlyout>
-                <MenuFlyoutItem Command="{StaticResource OpenTrayCommand}" />
-                <MenuFlyoutItem Command="{StaticResource PauseResumeTrayCommand}" />
-                <MenuFlyoutItem Command="{StaticResource SettingsTrayCommand}" />
-                <MenuFlyoutSeparator />
-                <MenuFlyoutItem Command="{StaticResource ExitTrayCommand}" />
-            </MenuFlyout>
-        </tb:TaskbarIcon.ContextFlyout>
-    </tb:TaskbarIcon>
+        Visibility="Visible" />
 </ResourceDictionary>

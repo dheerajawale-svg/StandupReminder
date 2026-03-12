@@ -1,8 +1,22 @@
 <Solution>
-  <Project Path="src/StandupReminder.App/StandupReminder.App.csproj" />
-  <Project Path="src/StandupReminder.Core/StandupReminder.Core.csproj" />
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="src/StandupReminder.App/StandupReminder.App.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="src/StandupReminder.Core/StandupReminder.Core.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
   <Project Path="src/StandupReminder.Windows/StandupReminder.Windows.csproj" />
   <Project Path="src/StandupReminder.Persistence/StandupReminder.Persistence.csproj" />
-  <Project Path="src/StandupReminder.WinUI/StandupReminder.WinUI.csproj" />
-  <Project Path="tests/StandupReminder.Core.Tests/StandupReminder.Core.Tests.csproj" />
+  <Project Path="src/StandupReminder.WinUI/StandupReminder.WinUI.csproj">
+    <Platform Solution="*|Any CPU" Project="x64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Deploy Solution="*|x64" />
+  </Project>
+  <Project Path="tests/StandupReminder.Core.Tests/StandupReminder.Core.Tests.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
 </Solution>
