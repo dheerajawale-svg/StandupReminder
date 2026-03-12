@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "StandupReminder.WinUI (MSIX)": {
+      "commandName": "MsixPackage",
+      "alwaysReinstallApp": false,
+      "allowLocalNetworkLoopbackProperty": true,
+      "doNotLaunchApp": false,
+      "nativeDebugging": false,
+      "remoteDebugEnabled": false,
+      "authenticationMode": "Windows",
+      "remoteDebugMachine": "",
+      "commandLineArgs": ""
+    }
+  }
+}

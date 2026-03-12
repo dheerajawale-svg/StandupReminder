@@ -18,6 +18,7 @@ internal sealed class AppBootstrapper
             new LocalAppDataAppearanceSettingsStore(),
             static () => new NotifyIconReminderTrayHost(),
             static () => new SynchronizationContextReminderTickSource(),
+            // Session scope is intentionally limited to Windows 11 logon/lock/unlock transitions.
             static () => new SystemEventsReminderSessionEventSource())
     {
     }

@@ -27,6 +27,10 @@ packages/
 *.log
 *.iss.tmp
 
+# Code-signing certificates — never commit private keys
+*.pfx
+*.cer
+
 # OS files
 .DS_Store
 Thumbs.db

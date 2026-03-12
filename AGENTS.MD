@@ -249,7 +249,6 @@ Unit test project targeting `net8.0` with xUnit. Validates Core scheduler behavi
 - Keep WinUI isolated from raw Win32/WinForms details except through adapters/hosts.
 
 ## Important Risks And Open Questions
-- Packaging choice may affect startup behavior, notification identity, and local data continuity.
 - WPF `ITrayService` currently hides inherited Core members and may produce benign CS0108 warnings until WPF tray ownership is retired.
 - Session events can reach the prompt host outside timer-posted flows, so prompt operations must continue to self-marshal to the UI thread.
 - Prompt/settings compile and pass targeted tests, but still require live desktop smoke validation before the WPF fallback can be removed confidently.

@@ -4,6 +4,7 @@ using StandupReminder.Core.Services;
 
 namespace StandupReminder.Windows;
 
+// The WinUI app only reacts to the Windows 11 transitions that affect timer lifecycle.
 public sealed class SystemEventsReminderSessionEventSource : IReminderSessionEventSource
 {
     private bool _disposed;
@@ -50,6 +51,7 @@ public sealed class SystemEventsReminderSessionEventSource : IReminderSessionEve
                 return true;
 
             default:
+                // Other SessionSwitch reasons are intentionally ignored until the product scope expands.
                 sessionEvent = default;
                 return false;
         }
