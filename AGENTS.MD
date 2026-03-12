@@ -242,23 +242,10 @@ Unit test project targeting `net8.0` with xUnit. Validates Core scheduler behavi
 - Core/Persistence test suite currently contains 18 passing tests covering scheduler and persistence behavior.
 
 ## Remaining Work Before WPF Retirement
-- Manual parity/smoke validation is still required for the live WinUI tray app, especially:
-  - sitting countdown
-  - stand prompt show/reuse/confirm/snooze/dismiss flow
-  - tray-driven settings open/edit/save/reopen flow
-  - runtime updates after settings save while already running
-  - manual pause/resume
-  - lock/unlock pause and resume behavior
-- Packaging/cutover work is still pending:
-  - confirm unpackaged/Inno vs MSIX direction
-  - verify startup/deployment behavior for the chosen model
-  - validate installed-style runs before retiring WPF
-- WPF should remain present until WinUI parity is confirmed in realistic desktop runs.
+- WPF should remain present until WinUI parity is confirmed in realistic desktop runs. But it is not used for development.
 
 ## Migration Constraints That Still Matter
 - Keep WPF behavior working unless a slice is explicitly replaced and validated.
-- Preserve local data compatibility; avoid unnecessary schema churn.
-- Keep ownership moves narrow and abstraction-first.
 - Keep WinUI isolated from raw Win32/WinForms details except through adapters/hosts.
 
 ## Important Risks And Open Questions
