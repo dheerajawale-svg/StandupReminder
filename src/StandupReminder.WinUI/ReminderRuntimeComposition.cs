@@ -109,49 +109,80 @@ internal sealed class ReminderRuntimeComposition : IDisposable
 
     private void OnSessionEvent(ReminderSessionEvent sessionEvent)
     {
-        _runtime.HandleSessionEvent(sessionEvent);
-
         var message = sessionEvent switch
         {
             ReminderSessionEvent.Logon => "Session logon detected.",
-            ReminderSessionEvent.Lock => "Session locked — timer paused.",
-            ReminderSessionEvent.Unlock => "Session unlocked — timer resumed.",
+            ReminderSessionEvent.Lock => "Session locked - timer paused.",
+            ReminderSessionEvent.Unlock => "Session unlocked - timer resumed.",
             _ => $"Session event: {sessionEvent}."
         };
 
-        _dispatcherQueue.TryEnqueue(() => _shellViewModel.LogEvent(message));
+        EnqueueRuntimeMutation(() =>
+        {
+            _runtime.HandleSessionEvent(sessionEvent);
+            _shellViewModel.LogEvent(message);
+        });
     }
 
     private void OnTrayOpenRequested(object? sender, EventArgs e)
     {
+        _ = sender;
+        _ = e;
         WindowActivationRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnTrayPauseResumeRequested(object? sender, EventArgs e)
     {
-        if (_runtime.IsManuallyPaused)
+        _ = sender;
+        _ = e;
+
+        EnqueueRuntimeMutation(() =>
         {
-            _runtime.ResumeTimer();
-        }
-        else
-        {
-            _runtime.PauseTimer();
-        }
+            if (_runtime.IsManuallyPaused)
+            {
+                _runtime.ResumeTimer();
+            }
+            else
+            {
+                _runtime.PauseTimer();
+            }
+        });
     }
 
     private void OnTraySettingsRequested(object? sender, EventArgs e)
     {
+        _ = sender;
+        _ = e;
         SettingsRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnTrayExitRequested(object? sender, EventArgs e)
     {
+        _ = sender;
+        _ = e;
         ShutdownRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnRuntimeStateChanged(object? sender, EventArgs e)
     {
+        _ = sender;
+        _ = e;
         UpdateTrayState();
+    }
+
+    // Runtime mutations are funneled through the composition/UI thread so session and tray callbacks share one boundary.
+    private void EnqueueRuntimeMutation(Action action)
+    {
+        if (_dispatcherQueue.HasThreadAccess)
+        {
+            action();
+            return;
+        }
+
+        if (!_dispatcherQueue.TryEnqueue(() => action()))
+        {
+            throw new InvalidOperationException("Failed to marshal runtime work to the WinUI dispatcher.");
+        }
     }
 
     private void UpdateTrayState()

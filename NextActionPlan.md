@@ -55,31 +55,26 @@ Below is a prioritized, code-aware plan focused only on items that are still rel
   Prompt and settings UI marshalling is already mostly implemented, but session events can still reach runtime code from non-UI threads. That is safe only if all touched runtime paths are truly thread-agnostic.
 
 - **Current Status**  
-  **Partially addressed**
+  **Completed for current scope**
 
   Verified current state:
   - `StandUpReminderPromptHost` self-marshals to the UI thread
   - `App.xaml.cs` marshals tray-driven UI actions with `DispatcherQueue`
-  - `ReminderRuntimeComposition.OnSessionEvent(...)` calls `_runtime.HandleSessionEvent(sessionEvent)` directly before only marshaling the shell log update
+  - `ReminderRuntimeComposition` now queues session-event runtime mutations onto the WinUI dispatcher before calling `_runtime.HandleSessionEvent(...)`
+  - `ReminderRuntimeComposition` also routes tray pause/resume mutations through the same dispatcher boundary
+  - Runtime mutation ownership is documented in composition code so session and tray callbacks share one entry path
 
 - **Recommended Action**  
-  Make the threading boundary explicit and consistent.
+  Keep the current single-thread-affine model for runtime mutations.
 
   **Recommended hardening**
-  1. Decide whether `ReminderSchedulerRuntime` is intended to be:
-     - thread-safe from arbitrary callers, or
-     - single-thread-affine from the UI/composition thread
-  2. Prefer the second model for simplicity:
-     - marshal session events onto the same dispatcher/composition thread before mutating runtime state
-  3. Document this invariant in code comments and composition code:
-     - tray callbacks
-     - session callbacks
-     - prompt interactions
-     should all enter runtime from one known thread boundary
-  4. Avoid blocking UI-thread waits where possible in future refactors; current prompt host is acceptable but should remain carefully scoped
+  1. `ReminderSchedulerRuntime` is now treated as single-thread-affine from the UI/composition thread.
+  2. Session events and tray pause/resume mutations are marshalled onto the same dispatcher/composition thread before touching runtime state.
+  3. The composition code documents that runtime mutations enter through one known thread boundary.
+  4. Avoid blocking UI-thread waits where possible in future refactors; current prompt host is acceptable but should remain carefully scoped.
 
 - **Priority**  
-  **Medium**
+  **Completed**
 
 - **Affected Components**
   - `src/StandupReminder.WinUI/ReminderRuntimeComposition.cs`
@@ -88,13 +83,11 @@ Below is a prioritized, code-aware plan focused only on items that are still rel
   - `src/StandupReminder.Core/Services/ReminderSchedulerRuntime.cs`
 
 - **Actionable Next Steps**
-  1. Update composition so session events are queued through `DispatcherQueue` before calling `_runtime.HandleSessionEvent(...)`.
-  2. Add a short architecture note: “runtime mutations occur on the composition/UI thread.”
-  3. Smoke-test lock/unlock while:
+  1. Smoke-test lock/unlock while:
      - prompt is visible
      - settings window is open
      - tray pause/resume is toggled around session changes
-  4. If any race symptoms appear, add small targeted tests around runtime state transitions.
+  2. If any race symptoms appear, add small targeted tests around runtime state transitions.
 
 ## Low Priority / Transitional Only
 
@@ -133,17 +126,17 @@ Below is a prioritized, code-aware plan focused only on items that are still rel
 ## Recommended Order of Execution
 
 ### Phase 1
-1. Finalize the **deployment ADR** on top of the new WinUI MSIX foundation
+1. ~~Finalize the **deployment ADR** on top of the new WinUI MSIX foundation~~ **Done** - standardized on signed x64 MSIX sideload packages for WinUI
 2. Build a **WinUI smoke-test checklist**
 3. Run manual validation on the current WinUI shell, including the packaged MSIX path
 
 ### Phase 2
-4. Decide whether current `SystemEvents.SessionSwitch` coverage is enough
-5. If not, add a **WTS-based session adapter**
-6. Normalize runtime/session event marshalling onto one thread boundary
+4. ~~Decide whether current `SystemEvents.SessionSwitch` coverage is enough~~ **Done** for current Windows 11 `Logon` / `Lock` / `Unlock` scope
+5. If scope expands, add a **WTS-based session adapter**
+6. ~~Normalize runtime/session event marshalling onto one thread boundary~~ **Done**
 
 ### Phase 3
-7. ~~Add signing for WinUI MSIX~~ **Done** — decide and wire the chosen installer/update channel
+7. ~~Add signing for WinUI MSIX~~ **Done** - signed x64 MSIX sideload is the chosen WinUI installer/update channel
 8. Re-run smoke validation on the real install/update path
 9. Retire WPF only after the validation gate passes
 
@@ -151,13 +144,13 @@ Below is a prioritized, code-aware plan focused only on items that are still rel
 
 The two real blockers to WPF retirement are:
 
-- **install/update channel is not yet decided** (MSIX builds and is signed, but distribution flow is unresolved)
 - **desktop smoke validation is still incomplete**
+- **the packaged x64 MSIX install/uninstall path still needs full manual validation**
 
 The two meaningful engineering hardening items after that are:
 
-- **decide whether session-event parity needs WTS-level coverage**
-- **make runtime mutation thread ownership explicit**
+- **revisit WTS-level coverage only if session scope expands beyond `Logon` / `Lock` / `Unlock`**
+- **complete smoke validation around the now-explicit runtime thread boundary**
 
 The CS0108 item is real, but it is **legacy-only and not a WinUI readiness blocker**.
 
