@@ -49,46 +49,6 @@ Below is a prioritized, code-aware plan focused only on items that are still rel
   2. Leave the current `SystemEventsReminderSessionEventSource` in place.
   3. Reopen the WTS-adapter work only if a future requirement adds remote/console session coverage.
 
-### 2. Threading / Marshalling Is Mostly Good, but the Session Boundary Should Be Hardened
-
-- **Risk/Question Summary**  
-  Prompt and settings UI marshalling is already mostly implemented, but session events can still reach runtime code from non-UI threads. That is safe only if all touched runtime paths are truly thread-agnostic.
-
-- **Current Status**  
-  **Completed for current scope**
-
-  Verified current state:
-  - `StandUpReminderPromptHost` self-marshals to the UI thread
-  - `App.xaml.cs` marshals tray-driven UI actions with `DispatcherQueue`
-  - `ReminderRuntimeComposition` now queues session-event runtime mutations onto the WinUI dispatcher before calling `_runtime.HandleSessionEvent(...)`
-  - `ReminderRuntimeComposition` also routes tray pause/resume mutations through the same dispatcher boundary
-  - Runtime mutation ownership is documented in composition code so session and tray callbacks share one entry path
-
-- **Recommended Action**  
-  Keep the current single-thread-affine model for runtime mutations.
-
-  **Recommended hardening**
-  1. `ReminderSchedulerRuntime` is now treated as single-thread-affine from the UI/composition thread.
-  2. Session events and tray pause/resume mutations are marshalled onto the same dispatcher/composition thread before touching runtime state.
-  3. The composition code documents that runtime mutations enter through one known thread boundary.
-  4. Avoid blocking UI-thread waits where possible in future refactors; current prompt host is acceptable but should remain carefully scoped.
-
-- **Priority**  
-  **Completed**
-
-- **Affected Components**
-  - `src/StandupReminder.WinUI/ReminderRuntimeComposition.cs`
-  - `src/StandupReminder.WinUI/StandUpReminderPromptHost.cs`
-  - `src/StandupReminder.WinUI/App.xaml.cs`
-  - `src/StandupReminder.Core/Services/ReminderSchedulerRuntime.cs`
-
-- **Actionable Next Steps**
-  1. Smoke-test lock/unlock while:
-     - prompt is visible
-     - settings window is open
-     - tray pause/resume is toggled around session changes
-  2. If any race symptoms appear, add small targeted tests around runtime state transitions.
-
 ## Low Priority / Transitional Only
 
 ### 3. CS0108 Warnings in the WPF Tray Service Are Not a WinUI Blocker
@@ -126,19 +86,14 @@ Below is a prioritized, code-aware plan focused only on items that are still rel
 ## Recommended Order of Execution
 
 ### Phase 1
-1. ~~Finalize the **deployment ADR** on top of the new WinUI MSIX foundation~~ **Done** - standardized on signed x64 MSIX sideload packages for WinUI
-2. Build a **WinUI smoke-test checklist**
-3. Run manual validation on the current WinUI shell, including the packaged MSIX path
+1. Run manual validation on the current WinUI shell, including the packaged MSIX path
 
 ### Phase 2
-4. ~~Decide whether current `SystemEvents.SessionSwitch` coverage is enough~~ **Done** for current Windows 11 `Logon` / `Lock` / `Unlock` scope
-5. If scope expands, add a **WTS-based session adapter**
-6. ~~Normalize runtime/session event marshalling onto one thread boundary~~ **Done**
+2. If scope expands, add a **WTS-based session adapter**
 
 ### Phase 3
-7. ~~Add signing for WinUI MSIX~~ **Done** - signed x64 MSIX sideload is the chosen WinUI installer/update channel
-8. Re-run smoke validation on the real install/update path
-9. Retire WPF only after the validation gate passes
+3. Re-run smoke validation on the real install/update path
+4. Retire WPF only after the validation gate passes
 
 ## Bottom Line
 
