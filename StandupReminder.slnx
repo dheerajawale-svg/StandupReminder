@@ -9,12 +9,12 @@
   <Project Path="src/StandupReminder.Core/StandupReminder.Core.csproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
-  <Project Path="src/StandupReminder.Windows/StandupReminder.Windows.csproj" />
   <Project Path="src/StandupReminder.Persistence/StandupReminder.Persistence.csproj" />
+  <Project Path="src/StandupReminder.Windows/StandupReminder.Windows.csproj" />
   <Project Path="src/StandupReminder.WinUI/StandupReminder.WinUI.csproj">
-    <Platform Solution="*|Any CPU" Project="x64" />
-    <Platform Solution="*|x64" Project="x64" />
+    <Platform Project="x64" />
     <Deploy Solution="*|x64" />
+    <Deploy Solution="Debug|Any CPU" />
   </Project>
   <Project Path="tests/StandupReminder.Core.Tests/StandupReminder.Core.Tests.csproj">
     <Platform Solution="*|x64" Project="x64" />
