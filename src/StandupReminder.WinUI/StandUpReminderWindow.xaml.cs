@@ -11,8 +11,8 @@ namespace StandupReminder.WinUI;
 
 public sealed partial class StandUpReminderWindow : Window
 {
-    private const int PromptWidth = 460;
-    private const int PromptHeight = 300;
+    private const int PromptWidth = 520;
+    private const int PromptHeight = 360;
     private bool _allowClose;
 
     public StandUpReminderWindow(TimeSpan standDuration, string backgroundArgbHex)
@@ -33,7 +33,15 @@ public sealed partial class StandUpReminderWindow : Window
 
     public void UpdateBackground(string backgroundArgbHex)
     {
-        ReminderBackgroundBorder.Background = new SolidColorBrush(ParseArgbColor(backgroundArgbHex));
+        var backgroundColor = ParseArgbColor(backgroundArgbHex);
+        var accentColor = Color.FromArgb(
+            (byte)Math.Max(72, (int)backgroundColor.A),
+            backgroundColor.R,
+            backgroundColor.G,
+            backgroundColor.B);
+
+        ReminderSurfaceBorder.Background = new SolidColorBrush(backgroundColor);
+        ReminderAccentBadgeBorder.Background = new SolidColorBrush(accentColor);
     }
 
     public void DismissForLock()
@@ -82,6 +90,9 @@ public sealed partial class StandUpReminderWindow : Window
         presenter.PreferredMinimumHeight = PromptHeight;
         presenter.PreferredMaximumHeight = PromptHeight;
         AppWindow.SetPresenter(presenter);
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBarDragRegion);
+        ConfigureTitleBarChrome();
         AppWindow.Resize(new SizeInt32(PromptWidth, PromptHeight));
         CenterOnDisplay();
         AppWindow.Closing += OnAppWindowClosing;
@@ -122,6 +133,28 @@ public sealed partial class StandUpReminderWindow : Window
     {
         _allowClose = true;
         Close();
+    }
+
+    private void ConfigureTitleBarChrome()
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+        {
+            return;
+        }
+
+        var transparent = Color.FromArgb(0, 0, 0, 0);
+        var titleBar = AppWindow.TitleBar;
+        titleBar.PreferredTheme = TitleBarTheme.UseDefaultAppMode;
+        titleBar.BackgroundColor = transparent;
+        titleBar.ForegroundColor = transparent;
+        titleBar.ButtonBackgroundColor = transparent;
+        titleBar.ButtonForegroundColor = transparent;
+        titleBar.ButtonInactiveBackgroundColor = transparent;
+        titleBar.ButtonInactiveForegroundColor = transparent;
+        titleBar.ButtonHoverBackgroundColor = Color.FromArgb(18, 255, 255, 255);
+        titleBar.ButtonHoverForegroundColor = transparent;
+        titleBar.ButtonPressedBackgroundColor = Color.FromArgb(36, 255, 255, 255);
+        titleBar.ButtonPressedForegroundColor = transparent;
     }
 
     private static Color ParseArgbColor(string backgroundArgbHex)
