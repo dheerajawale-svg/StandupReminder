@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Microsoft.Toolkit.Uwp.Notifications;
 using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
@@ -9,6 +10,8 @@ namespace StandupReminder.App;
 
 public partial class App : System.Windows.Application
 {
+    private const string CleanupToastArgument = "--cleanup-toast";
+
     private ITrayService? _trayService;
     private IReminderSettingsStore? _settingsStore;
     private IAppearanceSettingsStore? _appearanceSettingsStore;
@@ -23,6 +26,18 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        if (e.Args.Any(argument => string.Equals(argument, CleanupToastArgument, StringComparison.OrdinalIgnoreCase)))
+        {
+            CleanupToastArtifacts();
+            Shutdown();
+            return;
+        }
+
+        DesktopNotificationManagerCompat.RegisterAumidAndComServer<ToastNotificationActivator>(ToastNotificationRegistration.AppUserModelId);
+        DesktopNotificationManagerCompat.RegisterActivator<ToastNotificationActivator>();
+        ToastNotificationActivator.Activated += OnToastActivated;
+
         ApplicationThemeManager.ApplySystemTheme();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -72,6 +87,7 @@ public partial class App : System.Windows.Application
     {
         _scheduler?.Dispose();
         _trayService?.Dispose();
+        ToastNotificationActivator.Activated -= OnToastActivated;
         base.OnExit(e);
     }
 
@@ -83,7 +99,7 @@ public partial class App : System.Windows.Application
         }
 
         _isShuttingDown = true;
-        _trayService?.DismissPersistentBalloonTip();
+        _trayService?.DismissPersistentNotification();
 
         if (_mainWindow is not null)
         {
@@ -204,5 +220,25 @@ public partial class App : System.Windows.Application
     {
         trayService.SetPauseMenuLabel(scheduler.IsManuallyPaused);
         trayService.UpdateStatus(BuildTrayStatus(scheduler));
+    }
+
+    private void OnToastActivated(object? sender, ToastNotificationActivationReceivedEventArgs e)
+    {
+        _ = sender;
+
+        Dispatcher.Invoke(() =>
+        {
+            var arguments = ToastArguments.Parse(e.Argument);
+            if (arguments.TryGetValue("action", out var action) && NotifyIconTrayService.IsSitReminderAction(action))
+            {
+                _trayService?.DismissPersistentNotification();
+                _mainWindowViewModel?.LogSystemMessage("Sit reminder acknowledged from Windows notification.");
+            }
+        });
+    }
+
+    private static void CleanupToastArtifacts()
+    {
+        ToastNotificationManagerCompat.Uninstall();
     }
 }

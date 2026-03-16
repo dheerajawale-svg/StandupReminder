@@ -3,6 +3,8 @@
 #define MyAppPublisher "StandupReminder"
 #define MyAppExeName "StandupReminder.exe"
 #define MyPublishDir "artifacts\\publish\\StandupReminder"
+#define MyAppUserModelId "StandupReminder.App"
+#define MyToastActivatorClsid "{{F4A71B55-EB0A-45F0-97C0-998D1B7BE059}}"
 
 [Setup]
 SourceDir=..
@@ -35,7 +37,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "{#MyAppUserModelId}"; AppUserModelToastActivatorCLSID: "{#MyToastActivatorClsid}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
@@ -43,6 +45,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--cleanup-toast"; RunOnceId: "StandupReminderToastCleanup"; Flags: runhidden waituntilterminated skipifdoesntexist
 
 [Messages]
 WelcomeLabel1=Apps By Dheeraj

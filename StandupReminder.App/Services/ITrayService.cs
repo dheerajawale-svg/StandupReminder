@@ -12,11 +12,11 @@ public interface ITrayService : IDisposable
 
     void Initialize();
 
-    void ShowBalloonTip(string title, string message);
+    void ShowNotification(string title, string message);
 
-    void ShowPersistentBalloonTip(string title, string message);
+    void ShowPersistentNotification(string title, string message);
 
-    void DismissPersistentBalloonTip();
+    void DismissPersistentNotification();
 
     void SetPauseMenuLabel(bool isPaused);
 

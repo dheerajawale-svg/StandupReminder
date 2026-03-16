@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.IO;
+using Microsoft.Toolkit.Uwp.Notifications;
 using Forms = System.Windows.Forms;
 
 namespace StandupReminder.App.Services;
@@ -8,14 +9,13 @@ public sealed class NotifyIconTrayService : ITrayService
 {
     private const int MaxTooltipLength = 63;
     private const int BalloonTipTimeoutMilliseconds = 5000;
-    private const int PersistentBalloonIntervalMilliseconds = 10000;
+    private const string SitReminderTag = "sit-reminder";
+    private const string SitReminderGroup = "posture-reminders";
+    private const string SitReminderAction = "ackSitReminder";
 
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ContextMenuStrip _contextMenu;
     private readonly Forms.ToolStripMenuItem _pauseMenuItem;
-    private readonly Forms.Timer _persistentBalloonTimer;
-    private string? _persistentBalloonTitle;
-    private string? _persistentBalloonMessage;
 
     public event EventHandler? OpenRequested;
 
@@ -42,14 +42,7 @@ public sealed class NotifyIconTrayService : ITrayService
             Visible = false
         };
 
-        _persistentBalloonTimer = new Forms.Timer
-        {
-            Interval = PersistentBalloonIntervalMilliseconds
-        };
-
         _notifyIcon.MouseClick += OnNotifyIconMouseClick;
-        _notifyIcon.BalloonTipClicked += OnBalloonTipClicked;
-        _persistentBalloonTimer.Tick += OnPersistentBalloonTimerTick;
     }
 
     public void Initialize()
@@ -57,7 +50,7 @@ public sealed class NotifyIconTrayService : ITrayService
         _notifyIcon.Visible = true;
     }
 
-    public void ShowBalloonTip(string title, string message)
+    public void ShowNotification(string title, string message)
     {
         _notifyIcon.BalloonTipIcon = Forms.ToolTipIcon.Info;
         _notifyIcon.BalloonTipTitle = title;
@@ -65,21 +58,28 @@ public sealed class NotifyIconTrayService : ITrayService
         _notifyIcon.ShowBalloonTip(BalloonTipTimeoutMilliseconds);
     }
 
-    public void ShowPersistentBalloonTip(string title, string message)
+    public void ShowPersistentNotification(string title, string message)
     {
-        _persistentBalloonTitle = title;
-        _persistentBalloonMessage = message;
+        DismissPersistentNotification();
 
-        ShowBalloonTip(title, message);
-        _persistentBalloonTimer.Stop();
-        _persistentBalloonTimer.Start();
+        new ToastContentBuilder()
+            .AddArgument("action", SitReminderAction)
+            .AddText(title)
+            .AddText(message)
+            .SetToastScenario(ToastScenario.Reminder)
+            .AddButton(new ToastButton()
+                .SetContent("OK")
+                .AddArgument("action", SitReminderAction))
+            .Show(toast =>
+            {
+                toast.Tag = SitReminderTag;
+                toast.Group = SitReminderGroup;
+            });
     }
 
-    public void DismissPersistentBalloonTip()
+    public void DismissPersistentNotification()
     {
-        _persistentBalloonTimer.Stop();
-        _persistentBalloonTitle = null;
-        _persistentBalloonMessage = null;
+        ToastNotificationManagerCompat.History.Remove(SitReminderTag, SitReminderGroup);
     }
 
     public void SetPauseMenuLabel(bool isPaused)
@@ -97,10 +97,7 @@ public sealed class NotifyIconTrayService : ITrayService
 
     public void Dispose()
     {
-        DismissPersistentBalloonTip();
-        _persistentBalloonTimer.Tick -= OnPersistentBalloonTimerTick;
-        _persistentBalloonTimer.Dispose();
-        _notifyIcon.BalloonTipClicked -= OnBalloonTipClicked;
+        DismissPersistentNotification();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _contextMenu.Dispose();
@@ -116,29 +113,6 @@ public sealed class NotifyIconTrayService : ITrayService
         }
     }
 
-    private void OnBalloonTipClicked(object? sender, EventArgs e)
-    {
-        _ = sender;
-        _ = e;
-
-        DismissPersistentBalloonTip();
-    }
-
-    private void OnPersistentBalloonTimerTick(object? sender, EventArgs e)
-    {
-        _ = sender;
-        _ = e;
-
-        if (string.IsNullOrWhiteSpace(_persistentBalloonTitle)
-            || string.IsNullOrWhiteSpace(_persistentBalloonMessage))
-        {
-            DismissPersistentBalloonTip();
-            return;
-        }
-
-        ShowBalloonTip(_persistentBalloonTitle, _persistentBalloonMessage);
-    }
-
     private static Icon LoadApplicationIcon()
     {
         var executablePath = Environment.ProcessPath;
@@ -152,5 +126,10 @@ public sealed class NotifyIconTrayService : ITrayService
         }
 
         return SystemIcons.Application;
+    }
+
+    public static bool IsSitReminderAction(string? action)
+    {
+        return string.Equals(action, SitReminderAction, StringComparison.Ordinal);
     }
 }
