@@ -34,9 +34,7 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        DesktopNotificationManagerCompat.RegisterAumidAndComServer<ToastNotificationActivator>(ToastNotificationRegistration.AppUserModelId);
-        DesktopNotificationManagerCompat.RegisterActivator<ToastNotificationActivator>();
-        ToastNotificationActivator.Activated += OnToastActivated;
+        ToastNotificationManagerCompat.OnActivated += OnToastActivated;
 
         ApplicationThemeManager.ApplySystemTheme();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -68,6 +66,9 @@ public partial class App : System.Windows.Application
         trayService.PauseResumeRequested += (_, _) => ToggleManualPause();
         trayService.SettingsRequested += (_, _) => ShowSettingsWindow();
         trayService.ExitRequested += (_, _) => PerformShutdown();
+        trayService.SitReminderAcknowledged += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder acknowledged from Windows notification.");
+        trayService.SitReminderBodyActivated += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder body clicked. Waiting for OK acknowledgement.");
+        trayService.SitReminderDismissed += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder dismissed from Windows notification. Re-showing reminder.");
         scheduler.StateChanged += (_, _) => UpdateTrayState(trayService, scheduler);
 
         trayService.Initialize();
@@ -87,7 +88,7 @@ public partial class App : System.Windows.Application
     {
         _scheduler?.Dispose();
         _trayService?.Dispose();
-        ToastNotificationActivator.Activated -= OnToastActivated;
+        ToastNotificationManagerCompat.OnActivated -= OnToastActivated;
         base.OnExit(e);
     }
 
@@ -181,6 +182,7 @@ public partial class App : System.Windows.Application
             ReminderPhase.SittingCountdown => "Sitting",
             ReminderPhase.StandingCountdown => "Standing",
             ReminderPhase.StandPromptPending => "Stand-up confirmation",
+            ReminderPhase.SitPromptPending => "Sit confirmation",
             ReminderPhase.SnoozedCountdown => "Snoozed",
             ReminderPhase.PausedManually => "Paused manually",
             ReminderPhase.PausedForLock => "Paused for lock",
@@ -190,6 +192,7 @@ public partial class App : System.Windows.Application
         var remainingLabel = scheduler.Phase switch
         {
             ReminderPhase.StandPromptPending => "awaiting action",
+            ReminderPhase.SitPromptPending => "awaiting OK",
             ReminderPhase.PausedManually when scheduler.RemainingTime == TimeSpan.Zero => "paused",
             _ => $"{scheduler.RemainingTime:hh\\:mm\\:ss} remaining"
         };
@@ -222,19 +225,9 @@ public partial class App : System.Windows.Application
         trayService.UpdateStatus(BuildTrayStatus(scheduler));
     }
 
-    private void OnToastActivated(object? sender, ToastNotificationActivationReceivedEventArgs e)
+    private void OnToastActivated(ToastNotificationActivatedEventArgsCompat e)
     {
-        _ = sender;
-
-        Dispatcher.Invoke(() =>
-        {
-            var arguments = ToastArguments.Parse(e.Argument);
-            if (arguments.TryGetValue("action", out var action) && NotifyIconTrayService.IsSitReminderAction(action))
-            {
-                _trayService?.DismissPersistentNotification();
-                _mainWindowViewModel?.LogSystemMessage("Sit reminder acknowledged from Windows notification.");
-            }
-        });
+        Dispatcher.Invoke(() => _trayService?.HandlePersistentNotificationActivation(e.Argument));
     }
 
     private static void CleanupToastArtifacts()

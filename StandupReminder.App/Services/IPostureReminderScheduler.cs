@@ -20,6 +20,8 @@ public interface IPostureReminderScheduler : IDisposable
 
     void ResumeTimer();
 
+    void AcknowledgeSitReminder();
+
     void UpdateOptions(ReminderScheduleOptions options);
 
     void UpdateAppearanceSettings(AppearanceSettings settings);

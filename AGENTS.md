@@ -5,8 +5,9 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 
 ## Project Summary
 - This repository contains a single Windows desktop application: `StandupReminder.App`.
-- The app is a `net8.0-windows` WPF application with `UseWPF=true` and `UseWindowsForms=true`.
+- The app is a `net8.0-windows10.0.17763.0` WPF application with `UseWPF=true` and `UseWindowsForms=true`.
 - `WPF-UI` is used for window chrome, theming, and controls.
+- `Microsoft.Toolkit.Uwp.Notifications` is used for Windows app notification toasts.
 - The app runs primarily from the system tray, tracks Windows session events, alternates sitting and standing intervals, and persists settings under Local AppData.
 
 ## Repository Layout
@@ -23,7 +24,7 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - Composition is done manually in [App.xaml.cs](C:\personal\StandupReminder\StandupReminder.App\App.xaml.cs). There is no DI container.
 - `PostureReminderScheduler` is the core state machine. Keep scheduling behavior centralized there.
 - `MainWindow` owns session monitor hookup and tray-hide behavior.
-- `NotifyIconTrayService` owns tray icon, menu actions, and balloon notifications.
+- `NotifyIconTrayService` owns tray icon, menu actions, legacy notify-icon balloon tips, and the sit-down reminder Windows toast.
 - `SettingsWindow` and `SettingsWindowViewModel` handle user-editable reminder intervals and appearance settings.
 - Persistence is file-based JSON under `%LocalAppData%\StandupReminder`.
 
@@ -32,6 +33,9 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - Session event history is stored in `%LocalAppData%\StandupReminder\session-events.json`.
 - Installer startup registration is handled in `Installer/StandupReminder.iss` through `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - There is also a `RegistryAutoStartRegistrationService`; if startup behavior changes, keep installer-time and runtime behavior aligned.
+- Sit-down reminders now use Windows app notifications via `ToastNotificationManagerCompat`, with activation handled in `App.xaml.cs`.
+- Uninstall cleanup for notification artifacts is triggered by running the app with `--cleanup-toast` from the installer uninstall script.
+- The sit reminder toast also loads `StandupReminder.App/Assets/sit_down_img.jpg` from the app output `Assets` folder, so packaging changes must keep that file copied alongside the executable.
 
 ## Working Conventions
 - Preserve the existing manual-construction style unless the user explicitly asks for architectural change.
@@ -56,7 +60,12 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
   - `StandupReminder.App/Services/PostureReminderScheduler.cs`
   - `StandupReminder.App/ViewModels/MainWindowViewModel.cs`
   - `StandupReminder.App/App.xaml.cs`
-- When modifying tray behavior, review both menu actions and tooltip/balloon handling in `NotifyIconTrayService`.
+- When modifying tray behavior, review both menu actions and tooltip/toast handling in `NotifyIconTrayService`.
+- When modifying the sit-down reminder notification, preserve the current acknowledgement semantics:
+  - it uses a Windows `Reminder` scenario toast with a single `OK` button
+  - it is a blocking state for the scheduler: the next sitting countdown does not start until the user clicks `OK`
+  - body clicks, swipe-away, and timeout do not acknowledge the reminder; they trigger a re-show after a short delay
+  - the toast uses `sit_down_img.jpg` as an inline image because hero-image layout cropped too much of the asset in the Windows shell
 - When modifying settings, keep JSON backward-compatible where practical and preserve fallback behavior on invalid/corrupt files.
 - When modifying the stand-up prompt window, keep the blocking behavior intentional:
   - it currently prevents normal close, `Esc`, and `Alt+F4`
@@ -67,12 +76,15 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - Never run unit tests for this repository.
 - Prefer build verification and targeted code inspection.
 - If you change packaging, verify the publish path still matches `Installer/StandupReminder.iss`.
+- If you change notification activation or packaging, verify the `OK` toast action still reaches `App.xaml.cs` and uninstall cleanup still clears notification artifacts.
+- If you change toast assets or packaging, verify `Assets\sit_down_img.jpg` is present next to the built executable and still renders in the sit reminder notification.
 - If you change persistence, verify the app still tolerates missing or malformed Local AppData JSON files.
 
 ## Known Project-Specific Constraints
 - The app starts in tray mode by default and uses explicit shutdown flow.
 - Theme resources are loaded from `WPF-UI` dictionaries in `App.xaml`.
 - The tray tooltip text is constrained by the Windows notify icon text limit and is truncated intentionally.
+- The sit-down reminder is a Windows shell toast, not a custom WPF dialog, so the shell still controls image layout and dismiss behavior; the app compensates by re-showing the toast until `OK` is clicked.
 - Session history shown in the dashboard is trimmed to the last 48 hours.
 - Snooze duration is currently fixed in code at 5 minutes.
 

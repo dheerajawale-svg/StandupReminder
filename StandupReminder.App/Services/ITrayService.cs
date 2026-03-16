@@ -10,11 +10,19 @@ public interface ITrayService : IDisposable
 
     event EventHandler? ExitRequested;
 
+    event EventHandler? SitReminderAcknowledged;
+
+    event EventHandler? SitReminderBodyActivated;
+
+    event EventHandler? SitReminderDismissed;
+
     void Initialize();
 
     void ShowNotification(string title, string message);
 
     void ShowPersistentNotification(string title, string message);
+
+    void HandlePersistentNotificationActivation(string arguments);
 
     void DismissPersistentNotification();
 
