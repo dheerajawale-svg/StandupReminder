@@ -39,15 +39,7 @@ public partial class App : System.Windows.Application
         ApplicationThemeManager.ApplySystemTheme();
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        var startupExperienceService = new StartupExperienceService();
-        var shouldShowFirstRunSplash = startupExperienceService.ShouldShowFirstRunSplash();
-        var firstRunSplashPersistFailed = false;
-
-        if (shouldShowFirstRunSplash)
-        {
-            new FirstRunSplashWindow().ShowDialog();
-            firstRunSplashPersistFailed = !startupExperienceService.TryMarkFirstRunSplashShown();
-        }
+        new FirstRunSplashWindow().ShowDialog();
 
         var settingsStore = new LocalAppDataReminderSettingsStore();
         var settingsLoadResult = settingsStore.Load();
@@ -91,11 +83,6 @@ public partial class App : System.Windows.Application
         if (!string.IsNullOrWhiteSpace(settingsLoadResult.WarningMessage))
         {
             viewModel.LogSystemMessage(settingsLoadResult.WarningMessage);
-        }
-
-        if (shouldShowFirstRunSplash && firstRunSplashPersistFailed)
-        {
-            viewModel.LogSystemMessage("Could not persist first-run startup state. The splash may appear again next launch.");
         }
     }
 

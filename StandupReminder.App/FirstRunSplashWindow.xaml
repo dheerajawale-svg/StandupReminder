@@ -57,17 +57,7 @@
                            TextWrapping="Wrap"
                            FontSize="15"
                            Foreground="#FFD0D7DE"
-                           Text="StandupReminder will keep running in the system tray and notify you when it is time to switch posture." />
-
-                <Border Grid.Row="3"
-                        Padding="12,8"
-                        HorizontalAlignment="Left"
-                        Background="#142535"
-                        CornerRadius="999">
-                    <TextBlock Foreground="#FFBFD7FF"
-                               FontSize="13"
-                               Text="First launch setup complete" />
-                </Border>
+                           Text="StandupReminder will keep running in the system tray and notify you when it is time to switch posture." />                
             </Grid>
         </Grid>
     </Border>
