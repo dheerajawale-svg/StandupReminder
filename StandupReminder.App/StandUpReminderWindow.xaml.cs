@@ -1,3 +1,4 @@
+using System.Media;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
@@ -19,6 +20,7 @@ public partial class StandUpReminderWindow : Window
         UpdateStandDuration(standDuration);
         UpdateBackground(backgroundArgbHex);
         Closing += OnClosing;
+        Loaded += OnLoaded;
         PreviewKeyDown += OnPreviewKeyDown;
     }
 
@@ -84,6 +86,14 @@ public partial class StandUpReminderWindow : Window
         {
             e.Cancel = true;
         }
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        SystemSounds.Exclamation.Play();
     }
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
