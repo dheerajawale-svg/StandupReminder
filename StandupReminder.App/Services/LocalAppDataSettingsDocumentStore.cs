@@ -63,6 +63,8 @@ internal sealed class LocalAppDataSettingsDocumentStore
         public ReminderScheduleSection? ReminderSchedule { get; set; }
 
         public AppearanceSection? Appearance { get; set; }
+
+        public StartupExperienceSection? StartupExperience { get; set; }
     }
 
     internal sealed class ReminderScheduleSection
@@ -100,5 +102,10 @@ internal sealed class LocalAppDataSettingsDocumentStore
                 WindowBackgroundArgbHex = settings.WindowBackgroundArgbHex
             };
         }
+    }
+
+    internal sealed class StartupExperienceSection
+    {
+        public bool HasShownFirstRunSplash { get; set; }
     }
 }
