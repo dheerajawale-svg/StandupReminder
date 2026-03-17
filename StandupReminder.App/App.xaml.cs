@@ -4,6 +4,7 @@ using Microsoft.Toolkit.Uwp.Notifications;
 using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
+using StandupReminder.WindowsInterop;
 using Wpf.Ui.Appearance;
 
 namespace StandupReminder.App;
@@ -11,6 +12,8 @@ namespace StandupReminder.App;
 public partial class App : System.Windows.Application
 {
     private const string CleanupToastArgument = "--cleanup-toast";
+    private const string RegisterAutoStartArgument = "--register-autostart";
+    private const string UnregisterAutoStartArgument = "--unregister-autostart";
 
     private ITrayService? _trayService;
     private IReminderSettingsStore? _settingsStore;
@@ -27,9 +30,8 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        if (e.Args.Any(argument => string.Equals(argument, CleanupToastArgument, StringComparison.OrdinalIgnoreCase)))
+        if (TryRunMaintenanceCommands(e.Args))
         {
-            CleanupToastArtifacts();
             Shutdown();
             return;
         }
@@ -235,5 +237,36 @@ public partial class App : System.Windows.Application
     private static void CleanupToastArtifacts()
     {
         ToastNotificationManagerCompat.Uninstall();
+    }
+
+    private static bool TryRunMaintenanceCommands(IReadOnlyList<string> arguments)
+    {
+        var shouldRegisterAutoStart = arguments.Any(argument => string.Equals(argument, RegisterAutoStartArgument, StringComparison.OrdinalIgnoreCase));
+        var shouldUnregisterAutoStart = arguments.Any(argument => string.Equals(argument, UnregisterAutoStartArgument, StringComparison.OrdinalIgnoreCase));
+        var shouldCleanupToast = arguments.Any(argument => string.Equals(argument, CleanupToastArgument, StringComparison.OrdinalIgnoreCase));
+
+        if (!shouldRegisterAutoStart && !shouldUnregisterAutoStart && !shouldCleanupToast)
+        {
+            return false;
+        }
+
+        var autoStartRegistrationService = new RegistryAutoStartRegistrationService();
+
+        if (shouldRegisterAutoStart)
+        {
+            autoStartRegistrationService.Register();
+        }
+
+        if (shouldUnregisterAutoStart)
+        {
+            autoStartRegistrationService.Unregister();
+        }
+
+        if (shouldCleanupToast)
+        {
+            CleanupToastArtifacts();
+        }
+
+        return true;
     }
 }
