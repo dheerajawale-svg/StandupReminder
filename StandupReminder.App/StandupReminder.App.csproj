@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StandupReminder.WindowsInterop\StandupReminder.WindowsInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\reminder_17382582.ico" />
     <Resource Include="Assets\reminder_17382582.png" />
     <Content Include="Assets\sit_down_img.jpg">
