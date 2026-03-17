@@ -16,7 +16,7 @@ public partial class FirstRunSplashWindow : Window
 
         _closeTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(2.5)
+            Interval = TimeSpan.FromSeconds(7)
         };
 
         _closeTimer.Tick += OnCloseTimerTick;
