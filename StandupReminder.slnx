@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="StandupReminder.App/StandupReminder.App.csproj" />
+  <Project Path="StandupReminder.WindowsInterop/StandupReminder.WindowsInterop.csproj" />
 </Solution>

@@ -44,6 +44,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
+[UninstallRun]
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--cleanup-toast"; RunOnceId: "StandupReminderToastCleanup"; Flags: runhidden waituntilterminated skipifdoesntexist
+
 [Messages]
 WelcomeLabel1=Apps By Dheeraj
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nStandupReminder is configured to start automatically with Windows by default. You can change this later from Windows Startup Apps.

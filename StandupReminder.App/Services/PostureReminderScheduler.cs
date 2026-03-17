@@ -41,6 +41,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             Interval = TimeSpan.FromSeconds(1)
         };
         _timer.Tick += OnTimerTick;
+        _trayService.SitReminderAcknowledged += OnSitReminderAcknowledged;
     }
 
     public void Start()
@@ -80,6 +81,13 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 _phase = ReminderPhase.PausedManually;
                 RaiseStateChanged();
                 break;
+
+            case ReminderPhase.SitPromptPending:
+                _remainingTime = TimeSpan.Zero;
+                _trayService.DismissPersistentNotification();
+                _phase = ReminderPhase.PausedManually;
+                RaiseStateChanged();
+                break;
         }
     }
 
@@ -107,7 +115,25 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 RaiseStateChanged();
                 ShowStandPrompt();
                 break;
+
+            case ReminderPhase.SitPromptPending:
+                _phase = ReminderPhase.SitPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowSitPrompt();
+                break;
         }
+    }
+
+    public void AcknowledgeSitReminder()
+    {
+        if (_phase != ReminderPhase.SitPromptPending)
+        {
+            return;
+        }
+
+        _trayService.DismissPersistentNotification();
+        BeginSittingCountdown(isInitial: false);
     }
 
     public void UpdateOptions(ReminderScheduleOptions options)
@@ -168,6 +194,12 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 _phase = ReminderPhase.PausedForLock;
                 RaiseStateChanged();
                 break;
+
+            case ReminderPhase.SitPromptPending:
+                _trayService.DismissPersistentNotification();
+                _phase = ReminderPhase.PausedForLock;
+                RaiseStateChanged();
+                break;
         }
     }
 
@@ -194,6 +226,13 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 RaiseStateChanged();
                 ShowStandPrompt();
                 break;
+
+            case ReminderPhase.SitPromptPending:
+                _phase = ReminderPhase.SitPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowSitPrompt();
+                break;
         }
     }
 
@@ -207,6 +246,8 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         _disposed = true;
         _timer.Stop();
         _timer.Tick -= OnTimerTick;
+        _trayService.SitReminderAcknowledged -= OnSitReminderAcknowledged;
+        _trayService.DismissPersistentNotification();
         ClosePromptForShutdown();
         GC.SuppressFinalize(this);
     }
@@ -267,7 +308,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         {
             case ReminderPhase.SittingCountdown:
             case ReminderPhase.SnoozedCountdown:
-                _trayService.DismissPersistentBalloonTip();
+                _trayService.DismissPersistentNotification();
                 _phase = ReminderPhase.StandPromptPending;
                 _remainingTime = TimeSpan.Zero;
                 RaiseStateChanged();
@@ -275,10 +316,17 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
                 break;
 
             case ReminderPhase.StandingCountdown:
-                _trayService.ShowPersistentBalloonTip("Time to sit", "Your standing interval is done. The next sitting timer has started.");
-                BeginSittingCountdown(isInitial: false);
+                _phase = ReminderPhase.SitPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowSitPrompt();
                 break;
         }
+    }
+
+    private void ShowSitPrompt()
+    {
+        _trayService.ShowPersistentNotification("Time to sit", "Your standing interval is done. Click OK to start the next sitting timer.");
     }
 
     private void ShowStandPrompt()
@@ -354,6 +402,13 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         {
             _promptWindow = null;
         }
+    }
+
+    private void OnSitReminderAcknowledged(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        AcknowledgeSitReminder();
     }
 
     private void CaptureRemainingTime()

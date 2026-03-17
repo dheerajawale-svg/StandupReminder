@@ -10,13 +10,21 @@ public interface ITrayService : IDisposable
 
     event EventHandler? ExitRequested;
 
+    event EventHandler? SitReminderAcknowledged;
+
+    event EventHandler? SitReminderBodyActivated;
+
+    event EventHandler? SitReminderDismissed;
+
     void Initialize();
 
-    void ShowBalloonTip(string title, string message);
+    void ShowNotification(string title, string message);
 
-    void ShowPersistentBalloonTip(string title, string message);
+    void ShowPersistentNotification(string title, string message);
 
-    void DismissPersistentBalloonTip();
+    void HandlePersistentNotificationActivation(string arguments);
+
+    void DismissPersistentNotification();
 
     void SetPauseMenuLabel(bool isPaused);
 

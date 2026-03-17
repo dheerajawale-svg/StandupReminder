@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
+using StandupReminder.WindowsInterop;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -9,10 +10,6 @@ namespace StandupReminder.App;
 
 public partial class MainWindow : FluentWindow
 {
-    private const int WTS_SESSION_LOGON = 0x0005;
-    private const int WTS_SESSION_LOCK = 0x0007;
-    private const int WTS_SESSION_UNLOCK = 0x0008;
-
     private readonly MainWindowViewModel _viewModel;
     private readonly IPostureReminderScheduler _scheduler;
 
@@ -111,32 +108,32 @@ public partial class MainWindow : FluentWindow
     {
         return WindowsSessionEventMonitor.Attach(
             window,
-            onSessionChanged: (sessionEvent, sessionId) => HandleSessionEvent(viewModel, sessionEvent, sessionId),
+            onSessionChanged: sessionEvent => HandleSessionEvent(viewModel, sessionEvent),
             onLifecycleChanged: lifecycleEvent => LogMonitorLifecycleEvent(viewModel, lifecycleEvent)
         );
     }
 
-    private void HandleSessionEvent(MainWindowViewModel viewModel, int sessionEvent, int sessionId)
+    private void HandleSessionEvent(MainWindowViewModel viewModel, SessionChangeEvent sessionEvent)
     {
-        switch (sessionEvent)
+        switch (sessionEvent.Type)
         {
-            case WTS_SESSION_LOCK:
-                viewModel.LogSessionLock(sessionId);
+            case SessionChangeType.Lock:
+                viewModel.LogSessionLock(sessionEvent.SessionId);
                 _scheduler.HandleSessionLock();
                 break;
 
-            case WTS_SESSION_UNLOCK:
-                viewModel.LogSessionUnlock(sessionId);
+            case SessionChangeType.Unlock:
+                viewModel.LogSessionUnlock(sessionEvent.SessionId);
                 _scheduler.HandleSessionUnlock();
                 break;
 
-            case WTS_SESSION_LOGON:
-                viewModel.LogSessionLogon(sessionId);
+            case SessionChangeType.Logon:
+                viewModel.LogSessionLogon(sessionEvent.SessionId);
                 _scheduler.HandleSessionLogon();
                 break;
 
             default:
-                viewModel.LogUnknownSessionEvent(sessionEvent, sessionId);
+                viewModel.LogUnknownSessionEvent(sessionEvent.RawEventCode, sessionEvent.SessionId);
                 break;
         }
     }

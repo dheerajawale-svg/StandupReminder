@@ -7,6 +7,7 @@ public enum ReminderPhase
     StandPromptPending,
     SnoozedCountdown,
     StandingCountdown,
+    SitPromptPending,
     PausedManually,
     PausedForLock
 }

@@ -152,7 +152,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 CurrentPhaseTitle = "Standing";
                 CurrentPhaseDescription = "The standing interval is running. You will get a sit notification when it finishes.";
                 PauseStateText = "Active";
-                TrayHintText = "The sit reminder is informational and restarts the next sit interval automatically.";
+                TrayHintText = "When the standing interval ends, the sit reminder must be acknowledged before the next sitting timer starts.";
+                break;
+
+            case ReminderPhase.SitPromptPending:
+                CurrentPhaseTitle = "Sit Confirmation";
+                CurrentPhaseDescription = "A blocking Windows notification is waiting for you to click OK before the next sitting countdown starts.";
+                PauseStateText = "Awaiting OK";
+                TrayHintText = "The sit reminder keeps reappearing until you acknowledge it from the Windows notification.";
                 break;
 
             case ReminderPhase.PausedForLock:
@@ -177,9 +184,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 break;
         }
 
-        RemainingTimeText = scheduler.Phase == ReminderPhase.StandPromptPending
-            ? "Awaiting confirmation"
-            : scheduler.RemainingTime.ToString(@"hh\:mm\:ss");
+        RemainingTimeText = scheduler.Phase switch
+        {
+            ReminderPhase.StandPromptPending => "Awaiting confirmation",
+            ReminderPhase.SitPromptPending => "Awaiting OK",
+            _ => scheduler.RemainingTime.ToString(@"hh\:mm\:ss")
+        };
     }
 
     private void AddEventLog(string message)
