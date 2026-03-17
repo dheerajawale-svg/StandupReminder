@@ -12,6 +12,8 @@ public interface ITrayService : IDisposable
 
     event EventHandler? SitReminderAcknowledged;
 
+    event EventHandler? SitReminderExtended;
+
     event EventHandler? SitReminderBodyActivated;
 
     event EventHandler? SitReminderDismissed;

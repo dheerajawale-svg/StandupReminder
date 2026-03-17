@@ -157,9 +157,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             case ReminderPhase.SitPromptPending:
                 CurrentPhaseTitle = "Sit Confirmation";
-                CurrentPhaseDescription = "A blocking Windows notification is waiting for you to click OK before the next sitting countdown starts.";
-                PauseStateText = "Awaiting OK";
-                TrayHintText = "The sit reminder keeps reappearing until you acknowledge it from the Windows notification.";
+                CurrentPhaseDescription = "A blocking Windows notification is waiting for you to click OK to sit down or Extend for 5 more standing minutes.";
+                PauseStateText = "Awaiting action";
+                TrayHintText = "The sit reminder keeps reappearing until you choose OK or Extend from the Windows notification.";
                 break;
 
             case ReminderPhase.PausedForLock:
@@ -187,7 +187,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         RemainingTimeText = scheduler.Phase switch
         {
             ReminderPhase.StandPromptPending => "Awaiting confirmation",
-            ReminderPhase.SitPromptPending => "Awaiting OK",
+            ReminderPhase.SitPromptPending => "Awaiting OK or Extend",
             _ => scheduler.RemainingTime.ToString(@"hh\:mm\:ss")
         };
     }

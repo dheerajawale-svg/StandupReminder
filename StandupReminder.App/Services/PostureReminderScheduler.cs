@@ -6,6 +6,7 @@ namespace StandupReminder.App.Services;
 public sealed class PostureReminderScheduler : IPostureReminderScheduler
 {
     private static readonly TimeSpan SnoozeDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan SitReminderExtensionDuration = TimeSpan.FromMinutes(5);
 
     private ReminderScheduleOptions _options;
     private AppearanceSettings _appearanceSettings;
@@ -18,6 +19,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     private DateTimeOffset _phaseEndsAt;
     private TimeSpan _remainingTime = TimeSpan.Zero;
     private StandUpReminderWindow? _promptWindow;
+    private TimeSpan _pendingRecurringSitExtension = TimeSpan.Zero;
     private bool _hasStarted;
     private bool _disposed;
 
@@ -42,6 +44,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         };
         _timer.Tick += OnTimerTick;
         _trayService.SitReminderAcknowledged += OnSitReminderAcknowledged;
+        _trayService.SitReminderExtended += OnSitReminderExtended;
     }
 
     public void Start()
@@ -134,6 +137,19 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
         _trayService.DismissPersistentNotification();
         BeginSittingCountdown(isInitial: false);
+    }
+
+    public void ExtendSitReminder()
+    {
+        if (_phase != ReminderPhase.SitPromptPending)
+        {
+            return;
+        }
+
+        _pendingRecurringSitExtension += SitReminderExtensionDuration;
+        _trayService.DismissPersistentNotification();
+        _phase = ReminderPhase.StandingCountdown;
+        StartCountdown(SitReminderExtensionDuration);
     }
 
     public void UpdateOptions(ReminderScheduleOptions options)
@@ -247,6 +263,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         _timer.Stop();
         _timer.Tick -= OnTimerTick;
         _trayService.SitReminderAcknowledged -= OnSitReminderAcknowledged;
+        _trayService.SitReminderExtended -= OnSitReminderExtended;
         _trayService.DismissPersistentNotification();
         ClosePromptForShutdown();
         GC.SuppressFinalize(this);
@@ -254,7 +271,15 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void BeginSittingCountdown(bool isInitial)
     {
-        var duration = isInitial ? _options.InitialSit : _options.RecurringSit;
+        var duration = isInitial
+            ? _options.InitialSit
+            : _options.RecurringSit + _pendingRecurringSitExtension;
+
+        if (!isInitial)
+        {
+            _pendingRecurringSitExtension = TimeSpan.Zero;
+        }
+
         _phase = ReminderPhase.SittingCountdown;
         StartCountdown(duration);
     }
@@ -326,7 +351,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void ShowSitPrompt()
     {
-        _trayService.ShowPersistentNotification("Time to sit", "Your standing interval is done. Click OK to start the next sitting timer.");
+        _trayService.ShowPersistentNotification("Time to sit", "Your standing interval is done. Click OK to start the next sitting timer, or Extend for 5 more standing minutes.");
     }
 
     private void ShowStandPrompt()
@@ -409,6 +434,13 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         _ = sender;
         _ = e;
         AcknowledgeSitReminder();
+    }
+
+    private void OnSitReminderExtended(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+        ExtendSitReminder();
     }
 
     private void CaptureRemainingTime()

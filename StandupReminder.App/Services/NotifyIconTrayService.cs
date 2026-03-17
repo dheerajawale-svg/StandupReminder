@@ -17,7 +17,8 @@ public sealed class NotifyIconTrayService : ITrayService
     private const string SitReminderGroup = "posture-reminders";
     private const string SitReminderKindArgument = "notification";
     private const string SitReminderKindValue = "sitReminder";
-    private const string SitReminderAction = "ackSitReminder";
+    private const string SitReminderAcknowledgeAction = "ackSitReminder";
+    private const string SitReminderExtendAction = "extendSitReminder";
     private static readonly TimeSpan SitReminderReshowDelay = TimeSpan.FromSeconds(1);
 
     private readonly Forms.NotifyIcon _notifyIcon;
@@ -40,6 +41,8 @@ public sealed class NotifyIconTrayService : ITrayService
     public event EventHandler? ExitRequested;
 
     public event EventHandler? SitReminderAcknowledged;
+
+    public event EventHandler? SitReminderExtended;
 
     public event EventHandler? SitReminderBodyActivated;
 
@@ -101,16 +104,31 @@ public sealed class NotifyIconTrayService : ITrayService
             return;
         }
 
-        if (toastArguments.TryGetValue("action", out var action) && IsSitReminderAction(action))
+        if (toastArguments.TryGetValue("action", out var action))
         {
-            lock (_sitReminderLock)
+            if (IsSitReminderAcknowledgeAction(action))
             {
-                _keepSitReminderVisible = false;
+                lock (_sitReminderLock)
+                {
+                    _keepSitReminderVisible = false;
+                }
+
+                CancelSitReminderReshow();
+                SitReminderAcknowledged?.Invoke(this, EventArgs.Empty);
+                return;
             }
 
-            CancelSitReminderReshow();
-            SitReminderAcknowledged?.Invoke(this, EventArgs.Empty);
-            return;
+            if (IsSitReminderExtendAction(action))
+            {
+                lock (_sitReminderLock)
+                {
+                    _keepSitReminderVisible = false;
+                }
+
+                CancelSitReminderReshow();
+                SitReminderExtended?.Invoke(this, EventArgs.Empty);
+                return;
+            }
         }
 
         SitReminderBodyActivated?.Invoke(this, EventArgs.Empty);
@@ -172,7 +190,10 @@ public sealed class NotifyIconTrayService : ITrayService
             .SetToastScenario(ToastScenario.Reminder)
             .AddButton(new ToastButton()
                 .SetContent("OK")
-                .AddArgument("action", SitReminderAction))
+                .AddArgument("action", SitReminderAcknowledgeAction))
+            .AddButton(new ToastButton()
+                .SetContent("Extend")
+                .AddArgument("action", SitReminderExtendAction))
             .Show(toast =>
             {
                 toast.Tag = SitReminderTag;
@@ -305,8 +326,13 @@ public sealed class NotifyIconTrayService : ITrayService
             && string.Equals(kind, SitReminderKindValue, StringComparison.Ordinal);
     }
 
-    public static bool IsSitReminderAction(string? action)
+    public static bool IsSitReminderAcknowledgeAction(string? action)
     {
-        return string.Equals(action, SitReminderAction, StringComparison.Ordinal);
+        return string.Equals(action, SitReminderAcknowledgeAction, StringComparison.Ordinal);
+    }
+
+    public static bool IsSitReminderExtendAction(string? action)
+    {
+        return string.Equals(action, SitReminderExtendAction, StringComparison.Ordinal);
     }
 }
