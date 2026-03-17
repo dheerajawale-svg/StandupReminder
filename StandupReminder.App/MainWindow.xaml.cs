@@ -5,6 +5,7 @@ using StandupReminder.App.ViewModels;
 using StandupReminder.WindowsInterop;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using System.Windows.Interop;
 
 namespace StandupReminder.App;
 
@@ -15,7 +16,6 @@ public partial class MainWindow : FluentWindow
 
     private WindowsSessionEventMonitor? _sessionMonitor;
     private bool _allowClose;
-    private bool _backgroundLaunchPending;
 
     public MainWindow(MainWindowViewModel viewModel, IPostureReminderScheduler scheduler)
     {
@@ -26,17 +26,18 @@ public partial class MainWindow : FluentWindow
         DataContext = _viewModel;
 
         SourceInitialized += OnSourceInitialized;
-        ContentRendered += OnContentRendered;
         Closing += OnWindowClosing;
     }
 
     public void PrepareForBackgroundLaunch()
     {
-        _backgroundLaunchPending = true;
         ShowActivated = false;
         ShowInTaskbar = false;
-        WindowState = WindowState.Minimized;
-        Opacity = 0;
+        Visibility = Visibility.Hidden;
+
+        // Create the native window handle without showing the dashboard so
+        // session monitoring can still register for WTS notifications.
+        _ = new WindowInteropHelper(this).EnsureHandle();
     }
 
     public void ShowFromTray()
@@ -64,20 +65,6 @@ public partial class MainWindow : FluentWindow
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         _sessionMonitor = CreateSessionEventMonitor(this, _viewModel);
-    }
-
-    private void OnContentRendered(object? sender, EventArgs e)
-    {
-        _ = sender;
-        _ = e;
-
-        if (!_backgroundLaunchPending)
-        {
-            return;
-        }
-
-        _backgroundLaunchPending = false;
-        HideToTray("Main window hidden. Use the tray icon to reopen the dashboard.");
     }
 
     private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)

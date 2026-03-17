@@ -38,13 +38,15 @@ Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdi
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "StandupReminder"; ValueData: """{app}\{#MyAppExeName}"" --startup-delay=30"; Flags: uninsdeletevalue
+
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--register-autostart"; Flags: runhidden waituntilterminated postinstall skipifsilent
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--unregister-autostart --cleanup-toast"; RunOnceId: "StandupReminderToastCleanup"; Flags: runhidden waituntilterminated skipifdoesntexist
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--cleanup-toast"; RunOnceId: "StandupReminderToastCleanup"; Flags: runhidden waituntilterminated skipifdoesntexist
 
 [Messages]
 WelcomeLabel1=Apps By Dheeraj
-WelcomeLabel2=This will install [name/ver] on your computer.%n%nStandupReminder is configured to start automatically with Windows using a delayed startup task. Advanced users can review or remove that task later in Windows Task Scheduler.
+WelcomeLabel2=This will install [name/ver] on your computer.%n%nStandupReminder is configured to start automatically with Windows and wait briefly before opening after sign-in. You can change this later from Windows Startup Apps.

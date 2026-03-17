@@ -1,10 +1,10 @@
 using System.IO;
+using System.Threading;
 using System.Windows;
 using Microsoft.Toolkit.Uwp.Notifications;
 using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
-using StandupReminder.WindowsInterop;
 using Wpf.Ui.Appearance;
 
 namespace StandupReminder.App;
@@ -12,8 +12,7 @@ namespace StandupReminder.App;
 public partial class App : System.Windows.Application
 {
     private const string CleanupToastArgument = "--cleanup-toast";
-    private const string RegisterAutoStartArgument = "--register-autostart";
-    private const string UnregisterAutoStartArgument = "--unregister-autostart";
+    private const string StartupDelayArgumentPrefix = "--startup-delay=";
 
     private ITrayService? _trayService;
     private IReminderSettingsStore? _settingsStore;
@@ -30,11 +29,14 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        if (TryRunMaintenanceCommands(e.Args))
+        if (e.Args.Any(argument => string.Equals(argument, CleanupToastArgument, StringComparison.OrdinalIgnoreCase)))
         {
+            CleanupToastArtifacts();
             Shutdown();
             return;
         }
+
+        ApplyStartupDelay(e.Args);
 
         ToastNotificationManagerCompat.OnActivated += OnToastActivated;
 
@@ -78,7 +80,6 @@ public partial class App : System.Windows.Application
         trayService.Initialize();
         UpdateTrayState(trayService, scheduler);
 
-        _mainWindow.Show();
         scheduler.Start();
         viewModel.LogSystemMessage("Application started in tray mode.");
 
@@ -239,34 +240,23 @@ public partial class App : System.Windows.Application
         ToastNotificationManagerCompat.Uninstall();
     }
 
-    private static bool TryRunMaintenanceCommands(IReadOnlyList<string> arguments)
+    private static void ApplyStartupDelay(IReadOnlyList<string> arguments)
     {
-        var shouldRegisterAutoStart = arguments.Any(argument => string.Equals(argument, RegisterAutoStartArgument, StringComparison.OrdinalIgnoreCase));
-        var shouldUnregisterAutoStart = arguments.Any(argument => string.Equals(argument, UnregisterAutoStartArgument, StringComparison.OrdinalIgnoreCase));
-        var shouldCleanupToast = arguments.Any(argument => string.Equals(argument, CleanupToastArgument, StringComparison.OrdinalIgnoreCase));
-
-        if (!shouldRegisterAutoStart && !shouldUnregisterAutoStart && !shouldCleanupToast)
+        foreach (var argument in arguments)
         {
-            return false;
+            if (!argument.StartsWith(StartupDelayArgumentPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var secondsText = argument[StartupDelayArgumentPrefix.Length..];
+            if (!int.TryParse(secondsText, out var seconds) || seconds <= 0)
+            {
+                return;
+            }
+
+            Thread.Sleep(TimeSpan.FromSeconds(seconds));
+            return;
         }
-
-        var autoStartRegistrationService = new RegistryAutoStartRegistrationService();
-
-        if (shouldRegisterAutoStart)
-        {
-            autoStartRegistrationService.Register();
-        }
-
-        if (shouldUnregisterAutoStart)
-        {
-            autoStartRegistrationService.Unregister();
-        }
-
-        if (shouldCleanupToast)
-        {
-            CleanupToastArtifacts();
-        }
-
-        return true;
     }
 }
