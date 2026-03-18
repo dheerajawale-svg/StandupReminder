@@ -271,14 +271,9 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void BeginSittingCountdown(bool isInitial)
     {
-        var duration = isInitial
-            ? _options.InitialSit
-            : _options.RecurringSit + _pendingRecurringSitExtension;
-
-        if (!isInitial)
-        {
-            _pendingRecurringSitExtension = TimeSpan.Zero;
-        }
+        var baseDuration = isInitial ? _options.InitialSit : _options.RecurringSit;
+        var duration = baseDuration + _pendingRecurringSitExtension;
+        _pendingRecurringSitExtension = TimeSpan.Zero;
 
         _phase = ReminderPhase.SittingCountdown;
         StartCountdown(duration);
