@@ -73,7 +73,7 @@ public partial class App : System.Windows.Application
         trayService.SettingsRequested += (_, _) => ShowSettingsWindow();
         trayService.ExitRequested += (_, _) => PerformShutdown();
         trayService.SitReminderAcknowledged += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder acknowledged from Windows notification.");
-        trayService.SitReminderExtended += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder extended by 5 minutes from Windows notification. The next sitting timer will also gain 5 minutes.");
+        trayService.SitReminderExtended += (_, args) => _mainWindowViewModel?.LogSystemMessage($"Sit reminder extended by {args.Minutes} minutes from Windows notification. The next sitting timer will also gain {args.Minutes} minutes.");
         trayService.SitReminderBodyActivated += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder body clicked. Waiting for OK or Extend.");
         trayService.SitReminderDismissed += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder dismissed from Windows notification. Re-showing reminder.");
         scheduler.StateChanged += (_, _) => UpdateTrayState(trayService, scheduler);
@@ -233,7 +233,7 @@ public partial class App : System.Windows.Application
 
     private void OnToastActivated(ToastNotificationActivatedEventArgsCompat e)
     {
-        Dispatcher.Invoke(() => _trayService?.HandlePersistentNotificationActivation(e.Argument));
+        Dispatcher.Invoke(() => _trayService?.HandlePersistentNotificationActivation(e.Argument, e.UserInput));
     }
 
     private static void CleanupToastArtifacts()

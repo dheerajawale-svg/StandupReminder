@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Toolkit.Uwp.Notifications;
+using Windows.Foundation.Collections;
 using Windows.UI.Notifications;
 using Forms = System.Windows.Forms;
 
@@ -19,7 +20,10 @@ public sealed class NotifyIconTrayService : ITrayService
     private const string SitReminderKindValue = "sitReminder";
     private const string SitReminderAcknowledgeAction = "ackSitReminder";
     private const string SitReminderExtendAction = "extendSitReminder";
+    private const string SitReminderExtendMinutesInputId = "sitReminderExtendMinutes";
+    private const int DefaultSitReminderExtensionMinutes = 5;
     private static readonly TimeSpan SitReminderReshowDelay = TimeSpan.FromSeconds(1);
+    private static readonly int[] AllowedSitReminderExtensionMinutes = [5, 10, 20, 30];
 
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ContextMenuStrip _contextMenu;
@@ -42,7 +46,7 @@ public sealed class NotifyIconTrayService : ITrayService
 
     public event EventHandler? SitReminderAcknowledged;
 
-    public event EventHandler? SitReminderExtended;
+    public event EventHandler<SitReminderExtendedEventArgs>? SitReminderExtended;
 
     public event EventHandler? SitReminderBodyActivated;
 
@@ -95,7 +99,7 @@ public sealed class NotifyIconTrayService : ITrayService
         ShowSitReminderToast();
     }
 
-    public void HandlePersistentNotificationActivation(string arguments)
+    public void HandlePersistentNotificationActivation(string arguments, ValueSet? userInput)
     {
         var toastArguments = ToastArguments.Parse(arguments);
 
@@ -120,13 +124,15 @@ public sealed class NotifyIconTrayService : ITrayService
 
             if (IsSitReminderExtendAction(action))
             {
+                var extensionMinutes = GetSitReminderExtensionMinutes(userInput);
+
                 lock (_sitReminderLock)
                 {
                     _keepSitReminderVisible = false;
                 }
 
                 CancelSitReminderReshow();
-                SitReminderExtended?.Invoke(this, EventArgs.Empty);
+                SitReminderExtended?.Invoke(this, new SitReminderExtendedEventArgs(extensionMinutes));
                 return;
             }
         }
@@ -185,15 +191,20 @@ public sealed class NotifyIconTrayService : ITrayService
         new ToastContentBuilder()
             .AddArgument(SitReminderKindArgument, SitReminderKindValue)
             .AddText(_sitReminderTitle)
-            .AddText(_sitReminderMessage)
-            .AddInlineImage(GetSitReminderHeroImageUri())
+            //.AddText(_sitReminderMessage)            
             .SetToastScenario(ToastScenario.Reminder)
+            .AddComboBox(
+                SitReminderExtendMinutesInputId,
+                "Extend by",
+                DefaultSitReminderExtensionMinutes.ToString(),
+                AllowedSitReminderExtensionMinutes.Select(minutes => (minutes.ToString(), minutes.ToString())))
             .AddButton(new ToastButton()
                 .SetContent("OK")
                 .AddArgument("action", SitReminderAcknowledgeAction))
             .AddButton(new ToastButton()
                 .SetContent("Extend")
                 .AddArgument("action", SitReminderExtendAction))
+            .AddInlineImage(GetSitReminderHeroImageUri())
             .Show(toast =>
             {
                 toast.Tag = SitReminderTag;
@@ -324,6 +335,19 @@ public sealed class NotifyIconTrayService : ITrayService
     {
         return arguments.TryGetValue(SitReminderKindArgument, out var kind)
             && string.Equals(kind, SitReminderKindValue, StringComparison.Ordinal);
+    }
+
+    private static int GetSitReminderExtensionMinutes(ValueSet? userInput)
+    {
+        if (userInput is not null
+            && userInput.TryGetValue(SitReminderExtendMinutesInputId, out var rawValue)
+            && int.TryParse(rawValue?.ToString(), out var minutes)
+            && AllowedSitReminderExtensionMinutes.Contains(minutes))
+        {
+            return minutes;
+        }
+
+        return DefaultSitReminderExtensionMinutes;
     }
 
     public static bool IsSitReminderAcknowledgeAction(string? action)

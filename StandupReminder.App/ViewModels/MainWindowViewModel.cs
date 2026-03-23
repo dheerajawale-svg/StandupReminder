@@ -157,7 +157,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             case ReminderPhase.SitPromptPending:
                 CurrentPhaseTitle = "Sit Confirmation";
-                CurrentPhaseDescription = "A blocking Windows notification is waiting for you to click OK to sit down or Extend for 5 more standing minutes.";
+                CurrentPhaseDescription = "A blocking Windows notification is waiting for you to click OK to sit down, or choose extra standing minutes and click Extend.";
                 PauseStateText = "Awaiting action";
                 TrayHintText = "The sit reminder keeps reappearing until you choose OK or Extend from the Windows notification.";
                 break;

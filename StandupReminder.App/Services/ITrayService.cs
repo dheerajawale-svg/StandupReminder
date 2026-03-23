@@ -1,3 +1,5 @@
+using Windows.Foundation.Collections;
+
 namespace StandupReminder.App.Services;
 
 public interface ITrayService : IDisposable
@@ -12,7 +14,7 @@ public interface ITrayService : IDisposable
 
     event EventHandler? SitReminderAcknowledged;
 
-    event EventHandler? SitReminderExtended;
+    event EventHandler<SitReminderExtendedEventArgs>? SitReminderExtended;
 
     event EventHandler? SitReminderBodyActivated;
 
@@ -24,7 +26,7 @@ public interface ITrayService : IDisposable
 
     void ShowPersistentNotification(string title, string message);
 
-    void HandlePersistentNotificationActivation(string arguments);
+    void HandlePersistentNotificationActivation(string arguments, ValueSet? userInput);
 
     void DismissPersistentNotification();
 
