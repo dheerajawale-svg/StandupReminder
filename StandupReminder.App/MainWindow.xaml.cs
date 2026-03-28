@@ -15,6 +15,7 @@ public partial class MainWindow : FluentWindow
     private readonly IPostureReminderScheduler _scheduler;
 
     private WindowsSessionEventMonitor? _sessionMonitor;
+    private SessionChangeType? _lastSessionChangeType;
     private bool _allowClose;
 
     public MainWindow(MainWindowViewModel viewModel, IPostureReminderScheduler scheduler)
@@ -93,6 +94,7 @@ public partial class MainWindow : FluentWindow
     // Static entry point requested for wiring session detection into MainWindow.
     private WindowsSessionEventMonitor CreateSessionEventMonitor(Window window, MainWindowViewModel viewModel)
     {
+        viewModel.LogSystemMessage("Creating session event monitor.");
         return WindowsSessionEventMonitor.Attach(
             window,
             onSessionChanged: sessionEvent => HandleSessionEvent(viewModel, sessionEvent),
@@ -102,6 +104,18 @@ public partial class MainWindow : FluentWindow
 
     private void HandleSessionEvent(MainWindowViewModel viewModel, SessionChangeEvent sessionEvent)
     {
+        viewModel.LogSystemMessage($"WTS event: type={sessionEvent.Type} raw=0x{sessionEvent.RawEventCode:X} session={sessionEvent.SessionId} last={_lastSessionChangeType}");
+        if (sessionEvent.Type is SessionChangeType.Lock or SessionChangeType.Unlock)
+        {
+            if (_lastSessionChangeType == sessionEvent.Type)
+            {
+                viewModel.LogSystemMessage("WTS event: duplicate lock/unlock ignored.");
+                return;
+            }
+
+            _lastSessionChangeType = sessionEvent.Type;
+        }
+
         switch (sessionEvent.Type)
         {
             case SessionChangeType.Lock:

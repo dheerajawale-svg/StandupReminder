@@ -19,6 +19,7 @@ public sealed class WindowsSessionEventMonitor : IDisposable
     private IntPtr _windowHandle;
     private bool _sessionNotificationRegistered;
     private bool _disposed;
+    private Window? _window;
 
     private WindowsSessionEventMonitor(
         Action<SessionChangeEvent> onSessionChanged,
@@ -36,7 +37,7 @@ public sealed class WindowsSessionEventMonitor : IDisposable
     )
     {
         var monitor = new WindowsSessionEventMonitor(onSessionChanged, onLifecycleChanged);
-        monitor.TryStart(window);
+        monitor.AttachToWindow(window);
         return monitor;
     }
 
@@ -45,6 +46,12 @@ public sealed class WindowsSessionEventMonitor : IDisposable
         if (_disposed)
         {
             return;
+        }
+
+        if (_window is not null)
+        {
+            _window.SourceInitialized -= OnWindowSourceInitialized;
+            _window = null;
         }
 
         if (_hwndSource is not null)
@@ -64,9 +71,47 @@ public sealed class WindowsSessionEventMonitor : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private void AttachToWindow(Window window)
+    {
+        _window = window;
+
+        if (window.IsInitialized)
+        {
+            TryStart(window);
+            return;
+        }
+
+        window.SourceInitialized += OnWindowSourceInitialized;
+    }
+
+    private void OnWindowSourceInitialized(object? sender, EventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (sender is not Window window)
+        {
+            return;
+        }
+
+        window.SourceInitialized -= OnWindowSourceInitialized;
+        TryStart(window);
+    }
+
     private void TryStart(Window window)
     {
-        if (PresentationSource.FromVisual(window) is not HwndSource source)
+        _windowHandle = new WindowInteropHelper(window).EnsureHandle();
+        if (_windowHandle == IntPtr.Zero)
+        {
+            _onLifecycleChanged?.Invoke(new SessionMonitorLifecycleEvent(SessionMonitorLifecycleEventType.WindowHandleUnavailable));
+            return;
+        }
+
+        var source = PresentationSource.FromVisual(window) as HwndSource;
+        source ??= HwndSource.FromHwnd(_windowHandle);
+        if (source is null)
         {
             _onLifecycleChanged?.Invoke(new SessionMonitorLifecycleEvent(SessionMonitorLifecycleEventType.HwndSourceUnavailable));
             return;
@@ -74,13 +119,6 @@ public sealed class WindowsSessionEventMonitor : IDisposable
 
         _hwndSource = source;
         _hwndSource.AddHook(WindowMessageHook);
-
-        _windowHandle = new WindowInteropHelper(window).Handle;
-        if (_windowHandle == IntPtr.Zero)
-        {
-            _onLifecycleChanged?.Invoke(new SessionMonitorLifecycleEvent(SessionMonitorLifecycleEventType.WindowHandleUnavailable));
-            return;
-        }
 
         if (!WTSRegisterSessionNotification(_windowHandle, NOTIFY_FOR_THIS_SESSION))
         {

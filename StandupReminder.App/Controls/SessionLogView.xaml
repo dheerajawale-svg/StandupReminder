@@ -11,6 +11,31 @@
                  Background="Transparent"
                  BorderThickness="0"
                  FontFamily="Consolas"
-                 FontSize="13" />
+                 FontSize="13"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBox Text="{Binding Mode=OneWay}"
+                             TextWrapping="NoWrap"
+                             IsReadOnly="True"
+                             IsReadOnlyCaretVisible="True"
+                             IsUndoEnabled="False"
+                             SpellCheck.IsEnabled="False"
+                             CaretBrush="{DynamicResource TextFillColorPrimaryBrush}"
+                             Foreground="{Binding RelativeSource={RelativeSource AncestorType=ListBox}, Path=Foreground}"
+                             SelectionBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                             SelectionOpacity="0.35"
+                             Cursor="IBeam"
+                             TextOptions.TextFormattingMode="Display"
+                             TextOptions.TextRenderingMode="ClearType"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             Margin="0,1"
+                             HorizontalScrollBarVisibility="Hidden"
+                             VerticalScrollBarVisibility="Hidden" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
     </Border>
 </UserControl>

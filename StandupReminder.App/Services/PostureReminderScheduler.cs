@@ -16,6 +16,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     private ReminderPhase _phaseBeforePause = ReminderPhase.Idle;
     private ReminderPhase _phaseBeforeManualPause = ReminderPhase.Idle;
     private DateTimeOffset _phaseEndsAt;
+    private DateTimeOffset? _lockedAt;
     private TimeSpan _remainingTime = TimeSpan.Zero;
     private TimeSpan _lastStartedSittingDuration = TimeSpan.Zero;
     private StandUpReminderWindow? _promptWindow;
@@ -192,6 +193,8 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             return;
         }
 
+        _lockedAt = DateTimeOffset.Now;
+
         _phaseBeforePause = _phase;
 
         switch (_phase)
@@ -226,13 +229,25 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             return;
         }
 
+
+        if (_lockedAt is not null)
+        {
+            var lockedDuration = DateTimeOffset.Now - _lockedAt.Value;
+            if (lockedDuration > TimeSpan.Zero)
+            {
+                _phaseEndsAt += lockedDuration;
+            }
+        }
+
+        _lockedAt = null;
+
         switch (_phaseBeforePause)
         {
             case ReminderPhase.SittingCountdown:
             case ReminderPhase.SnoozedCountdown:
             case ReminderPhase.StandingCountdown:
                 _phase = _phaseBeforePause;
-                _phaseEndsAt = DateTimeOffset.Now + _remainingTime;
+                CaptureRemainingTime();
                 _timer.Start();
                 RaiseStateChanged();
                 break;
@@ -308,6 +323,11 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     {
         _ = sender;
         _ = e;
+
+        if (_phase == ReminderPhase.PausedForLock)
+        {
+            return;
+        }
 
         if (_phase is not ReminderPhase.SittingCountdown
             and not ReminderPhase.SnoozedCountdown
