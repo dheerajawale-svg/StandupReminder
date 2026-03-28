@@ -1,6 +1,5 @@
 using System.Drawing;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Toolkit.Uwp.Notifications;
@@ -8,9 +7,6 @@ using StandupReminder.App.Models;
 using Windows.Foundation.Collections;
 using Windows.UI.Notifications;
 using Forms = System.Windows.Forms;
-using Application = System.Windows.Application;
-using Point = System.Drawing.Point;
-using Rectangle = System.Drawing.Rectangle;
 
 namespace StandupReminder.App.Services;
 
@@ -32,14 +28,14 @@ public sealed class NotifyIconTrayService : ITrayService
     private static readonly int[] AllowedSitReminderExtensionMinutes = [5, 10, 20, 30];
 
     private readonly Forms.NotifyIcon _notifyIcon;
+    private readonly Forms.ContextMenuStrip _contextMenu;
+    private readonly Forms.ToolStripMenuItem _pauseMenuItem;
     private readonly Forms.Timer _liveTooltipTimer;
     private readonly object _sitReminderLock = new();
 
     private string? _sitReminderTitle;
     private string? _sitReminderMessage;
-    private string _pauseMenuLabel = "Pause timer";
     private CancellationTokenSource? _sitReminderReshowCancellation;
-    private TrayMenuWindow? _trayMenuWindow;
     private DateTimeOffset _liveTooltipUntil;
     private DateTimeOffset _statusCapturedAt;
     private ReminderPhase _currentPhase = ReminderPhase.Idle;
@@ -66,8 +62,16 @@ public sealed class NotifyIconTrayService : ITrayService
 
     public NotifyIconTrayService()
     {
+        _contextMenu = new Forms.ContextMenuStrip();
+        _contextMenu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke(this, EventArgs.Empty));
+        _pauseMenuItem = new Forms.ToolStripMenuItem("Pause timer", null, (_, _) => PauseResumeRequested?.Invoke(this, EventArgs.Empty));
+        _contextMenu.Items.Add(_pauseMenuItem);
+        _contextMenu.Items.Add("Settings", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
+        _contextMenu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
+
         _notifyIcon = new Forms.NotifyIcon
         {
+            ContextMenuStrip = _contextMenu,
             Icon = LoadApplicationIcon(),
             Text = "Standup Reminder",
             Visible = false
@@ -165,12 +169,7 @@ public sealed class NotifyIconTrayService : ITrayService
 
     public void SetPauseMenuLabel(bool isPaused)
     {
-        _pauseMenuLabel = isPaused ? "Resume timer" : "Pause timer";
-
-        if (_trayMenuWindow is not null)
-        {
-            _trayMenuWindow.SetPauseResumeLabel(_pauseMenuLabel);
-        }
+        _pauseMenuItem.Text = isPaused ? "Resume timer" : "Pause timer";
     }
 
     public void UpdateStatus(ReminderPhase phase, TimeSpan remainingTime)
@@ -198,14 +197,13 @@ public sealed class NotifyIconTrayService : ITrayService
 
         _disposed = true;
         DismissPersistentNotification();
-        CloseTrayMenu();
         _liveTooltipTimer.Stop();
         _liveTooltipTimer.Tick -= OnLiveTooltipTimerTick;
-        _notifyIcon.MouseClick -= OnNotifyIconMouseClick;
         _notifyIcon.MouseMove -= OnNotifyIconMouseMove;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _liveTooltipTimer.Dispose();
+        _contextMenu.Dispose();
     }
 
     private void ShowSitReminderToast()
@@ -323,14 +321,7 @@ public sealed class NotifyIconTrayService : ITrayService
 
         if (e.Button == Forms.MouseButtons.Left)
         {
-            CloseTrayMenu();
             OpenRequested?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        if (e.Button == Forms.MouseButtons.Right)
-        {
-            ToggleTrayMenu();
         }
     }
 
@@ -496,122 +487,4 @@ public sealed class NotifyIconTrayService : ITrayService
     {
         return string.Equals(action, SitReminderExtendAction, StringComparison.Ordinal);
     }
-
-    private void ToggleTrayMenu()
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null)
-        {
-            return;
-        }
-
-        dispatcher.Invoke(() =>
-        {
-            if (_trayMenuWindow is not null)
-            {
-                CloseTrayMenuCore();
-                return;
-            }
-
-            var trayMenuWindow = CreateTrayMenuWindow();
-            _trayMenuWindow = trayMenuWindow;
-            trayMenuWindow.Closed += OnTrayMenuWindowClosed;
-            trayMenuWindow.Left = -10000;
-            trayMenuWindow.Top = -10000;
-            trayMenuWindow.Opacity = 0;
-            trayMenuWindow.Show();
-            PositionTrayMenuWindow(trayMenuWindow);
-            trayMenuWindow.Opacity = 1;
-            trayMenuWindow.Activate();
-        });
-    }
-
-    private TrayMenuWindow CreateTrayMenuWindow()
-    {
-        var trayMenuWindow = new TrayMenuWindow();
-        trayMenuWindow.SetPauseResumeLabel(_pauseMenuLabel);
-        trayMenuWindow.OpenSelected += (_, _) => OpenRequested?.Invoke(this, EventArgs.Empty);
-        trayMenuWindow.PauseResumeSelected += (_, _) => PauseResumeRequested?.Invoke(this, EventArgs.Empty);
-        trayMenuWindow.SettingsSelected += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
-        trayMenuWindow.ExitSelected += (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty);
-        return trayMenuWindow;
-    }
-
-    private void PositionTrayMenuWindow(TrayMenuWindow trayMenuWindow)
-    {
-        var handle = new System.Windows.Interop.WindowInteropHelper(trayMenuWindow).Handle;
-        var dpi = GetDpiForWindow(handle);
-        var dpiScaleX = dpi / 96d;
-        var dpiScaleY = dpi / 96d;
-        var cursor = Forms.Control.MousePosition;
-        var workingArea = Forms.Screen.FromPoint(cursor).WorkingArea;
-
-        var left = CalculateHorizontalPosition(cursor, workingArea, trayMenuWindow.Width * dpiScaleX) / dpiScaleX;
-        var top = CalculateVerticalPosition(cursor, workingArea, trayMenuWindow.Height * dpiScaleY) / dpiScaleY;
-
-        trayMenuWindow.Left = left;
-        trayMenuWindow.Top = top;
-    }
-
-    private void CloseTrayMenu()
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null)
-        {
-            return;
-        }
-
-        dispatcher.Invoke(CloseTrayMenuCore);
-    }
-
-    private void CloseTrayMenuCore()
-    {
-        var trayMenuWindow = _trayMenuWindow;
-        if (trayMenuWindow is null)
-        {
-            return;
-        }
-
-        _trayMenuWindow = null;
-        trayMenuWindow.Closed -= OnTrayMenuWindowClosed;
-        trayMenuWindow.Close();
-    }
-
-    private void OnTrayMenuWindowClosed(object? sender, EventArgs e)
-    {
-        if (sender is not TrayMenuWindow trayMenuWindow)
-        {
-            return;
-        }
-
-        trayMenuWindow.Closed -= OnTrayMenuWindowClosed;
-
-        if (ReferenceEquals(_trayMenuWindow, trayMenuWindow))
-        {
-            _trayMenuWindow = null;
-        }
-    }
-
-    private static double CalculateHorizontalPosition(Point cursor, Rectangle workingArea, double menuWidth)
-    {
-        var desiredLeft = cursor.X >= workingArea.Left + (workingArea.Width / 2)
-            ? cursor.X - menuWidth - 8
-            : cursor.X + 8;
-        var maxLeft = workingArea.Right - menuWidth - 8;
-
-        return Math.Clamp(desiredLeft, workingArea.Left + 8, maxLeft);
-    }
-
-    private static double CalculateVerticalPosition(Point cursor, Rectangle workingArea, double menuHeight)
-    {
-        var desiredTop = cursor.Y >= workingArea.Top + (workingArea.Height / 2)
-            ? cursor.Y - menuHeight - 8
-            : cursor.Y + 8;
-        var maxTop = workingArea.Bottom - menuHeight - 8;
-
-        return Math.Clamp(desiredTop, workingArea.Top + 8, maxTop);
-    }
-
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hWnd);
 }

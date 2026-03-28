@@ -6,6 +6,7 @@ using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
 using Wpf.Ui.Appearance;
+using Forms = System.Windows.Forms;
 
 namespace StandupReminder.App;
 
@@ -38,6 +39,7 @@ public partial class App : System.Windows.Application
 
         ApplyStartupDelay(e.Args);
 
+        Forms.Application.SetColorMode(Forms.SystemColorMode.Dark);
         ToastNotificationManagerCompat.OnActivated += OnToastActivated;
 
         ApplicationThemeManager.ApplySystemTheme();
