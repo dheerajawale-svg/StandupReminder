@@ -30,6 +30,9 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Initialize application logger first
+        ApplicationLogger.Initialize();
+
         if (e.Args.Any(argument => string.Equals(argument, CleanupToastArgument, StringComparison.OrdinalIgnoreCase)))
         {
             CleanupToastArtifacts();
@@ -51,8 +54,7 @@ public partial class App : System.Windows.Application
         var settingsLoadResult = settingsStore.Load();
         var appearanceSettingsStore = new LocalAppDataAppearanceSettingsStore();
         var appearanceSettings = appearanceSettingsStore.Load();
-        var sessionEventLogStore = new LocalAppDataSessionEventLogStore();
-        var viewModel = new MainWindowViewModel(sessionEventLogStore);
+        var viewModel = new MainWindowViewModel(null!);
         var trayService = new NotifyIconTrayService();
         var scheduler = new PostureReminderScheduler(settingsLoadResult.Options, appearanceSettings, trayService);
 
@@ -92,10 +94,12 @@ public partial class App : System.Windows.Application
         }
     }
 
+
     protected override void OnExit(ExitEventArgs e)
     {
         _scheduler?.Dispose();
         _trayService?.Dispose();
+        ApplicationLogger.Shutdown();
         ToastNotificationManagerCompat.OnActivated -= OnToastActivated;
         base.OnExit(e);
     }
@@ -208,10 +212,12 @@ public partial class App : System.Windows.Application
         trayService.UpdateStatus(scheduler.Phase, scheduler.RemainingTime);
     }
 
+
     private void OnToastActivated(ToastNotificationActivatedEventArgsCompat e)
     {
         Dispatcher.Invoke(() => _trayService?.HandlePersistentNotificationActivation(e.Argument, e.UserInput));
     }
+
 
     private static void CleanupToastArtifacts()
     {

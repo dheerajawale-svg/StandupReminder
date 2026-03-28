@@ -1,7 +1,7 @@
 using System;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
 using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 
@@ -9,12 +9,7 @@ namespace StandupReminder.App.ViewModels;
 
 public sealed class MainWindowViewModel : INotifyPropertyChanged
 {
-    private static readonly TimeSpan EventHistoryRetention = TimeSpan.FromHours(48);
-
-    private readonly ISessionEventLogStore _eventLogStore;
-    private readonly List<SessionEventLogEntry> _eventHistory;
-
-    public ObservableCollection<string> EventLog { get; } = [];
+    private readonly ILogger<MainWindowViewModel> _logger;
 
     private string _currentPhaseTitle = "Starting";
     private string _currentPhaseDescription = "Preparing the reminder scheduler.";
@@ -26,12 +21,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public MainWindowViewModel(ISessionEventLogStore eventLogStore)
     {
-        _eventLogStore = eventLogStore;
-        _eventHistory = [.. eventLogStore.Load()];
-
-        TrimExpiredEventHistory();
-        RebuildEventLog();
-        AddEventLog("Application started.");
+        _logger = ApplicationLogger.CreateLogger<MainWindowViewModel>();
+        _logger.LogInformation("Application started.");
     }
 
     public string CurrentPhaseTitle
@@ -72,47 +63,47 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void LogSystemMessage(string message)
     {
-        AddEventLog(message);
+        _logger.LogInformation("{Message}", message);
     }
 
     public void LogHwndSourceInitializationFailed()
     {
-        AddEventLog("Failed to initialize HWND source. Event hooks were not registered.");
+        _logger.LogWarning("Failed to initialize HWND source. Event hooks were not registered.");
     }
 
     public void LogWindowHandleUnavailable()
     {
-        AddEventLog("Window handle is not available. Session notifications were not registered.");
+        _logger.LogWarning("Window handle is not available. Session notifications were not registered.");
     }
 
     public void LogWtsRegistrationFailed(int errorCode)
     {
-        AddEventLog($"WTSRegisterSessionNotification failed. Win32Error={errorCode}.");
+        _logger.LogError("WTSRegisterSessionNotification failed. Win32Error={ErrorCode}.", errorCode);
     }
 
     public void LogSessionNotificationListening()
     {
-        AddEventLog("Listening for WM_WTSSESSION_CHANGE notifications.");
+        _logger.LogInformation("Listening for WM_WTSSESSION_CHANGE notifications.");
     }
 
     public void LogSessionLock(int sessionId)
     {
-        AddEventLog($"Session event: lock (session {sessionId}).");
+        _logger.LogInformation("Session event: lock (session {SessionId}).", sessionId);
     }
 
     public void LogSessionUnlock(int sessionId)
     {
-        AddEventLog($"Session event: unlock (session {sessionId}).");
+        _logger.LogInformation("Session event: unlock (session {SessionId}).", sessionId);
     }
 
     public void LogSessionLogon(int sessionId)
     {
-        AddEventLog($"Session event: logon (session {sessionId}).");
+        _logger.LogInformation("Session event: logon (session {SessionId}).", sessionId);
     }
 
     public void LogUnknownSessionEvent(int sessionEvent, int sessionId)
     {
-        AddEventLog($"Session event: code=0x{sessionEvent:X} (session {sessionId}).");
+        _logger.LogInformation("Session event: code=0x{SessionEvent:X} (session {SessionId}).", sessionEvent, sessionId);
     }
 
     private void OnSchedulerStateChanged(object? sender, EventArgs e)
@@ -190,30 +181,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ReminderPhase.SitPromptPending => "Awaiting OK or Extend",
             _ => scheduler.RemainingTime.ToString(@"hh\:mm\:ss")
         };
-    }
-
-    private void AddEventLog(string message)
-    {
-        _eventHistory.Insert(0, new SessionEventLogEntry(DateTimeOffset.Now, message));
-        TrimExpiredEventHistory();
-        RebuildEventLog();
-        _eventLogStore.Save(_eventHistory);
-    }
-
-    private void RebuildEventLog()
-    {
-        EventLog.Clear();
-
-        foreach (var entry in _eventHistory.OrderByDescending(item => item.Timestamp))
-        {
-            EventLog.Add($"[{entry.Timestamp.LocalDateTime:yyyy-MM-dd HH:mm:ss}] {entry.Message}");
-        }
-    }
-
-    private void TrimExpiredEventHistory()
-    {
-        var cutoff = DateTimeOffset.Now - EventHistoryRetention;
-        _eventHistory.RemoveAll(entry => entry.Timestamp < cutoff);
     }
 
     private void SetProperty(ref string field, string value, [CallerMemberName] string? propertyName = null)

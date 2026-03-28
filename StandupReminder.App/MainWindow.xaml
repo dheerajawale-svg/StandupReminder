@@ -3,7 +3,6 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-                 xmlns:controls="clr-namespace:StandupReminder.App.Controls"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  mc:Ignorable="d"
                  Title="Standup Reminder"
@@ -110,8 +109,10 @@
                 <TextBlock Margin="0,0,0,8"
                            FontSize="16"
                            FontWeight="SemiBold"
-                           Text="Windows Session Events (Last 48 Hours)" />
-                <controls:SessionLogView EventLog="{Binding EventLog}" />
+                           Text="Event Logging" />
+                <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Text="All important application events are logged to file. Log files are stored in %LocalAppData%\StandupReminder\Logs with daily rotation." />
             </StackPanel>
         </Grid>
     </Grid>
