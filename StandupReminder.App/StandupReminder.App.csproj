@@ -35,4 +35,10 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Assets\splash.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

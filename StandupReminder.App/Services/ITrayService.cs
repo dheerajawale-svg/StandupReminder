@@ -1,3 +1,4 @@
+using StandupReminder.App.Models;
 using Windows.Foundation.Collections;
 
 namespace StandupReminder.App.Services;
@@ -32,5 +33,5 @@ public interface ITrayService : IDisposable
 
     void SetPauseMenuLabel(bool isPaused);
 
-    void UpdateStatus(string statusText);
+    void UpdateStatus(ReminderPhase phase, TimeSpan remainingTime);
 }

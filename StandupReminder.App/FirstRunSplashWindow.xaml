@@ -24,7 +24,7 @@
             CornerRadius="20">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="164" />
+                <ColumnDefinition Width="200" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -47,9 +47,10 @@
 
                 <TextBlock Grid.Row="1"
                            Margin="0,10,0,0"
-                           FontSize="30"
+                           FontSize="26"
+                           HorizontalAlignment="Center"
                            FontWeight="SemiBold"
-                           Foreground="White"
+                           Foreground="Bisque"
                            Text="Starting in the tray" />
 
                 <TextBlock Grid.Row="2"

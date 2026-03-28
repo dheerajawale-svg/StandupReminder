@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Toolkit.Uwp.Notifications;
+using StandupReminder.App.Models;
 using Windows.Foundation.Collections;
 using Windows.UI.Notifications;
 using Forms = System.Windows.Forms;
@@ -13,6 +14,7 @@ public sealed class NotifyIconTrayService : ITrayService
 {
     private const int MaxTooltipLength = 63;
     private const int BalloonTipTimeoutMilliseconds = 5000;
+    private static readonly TimeSpan LiveTooltipDuration = TimeSpan.FromSeconds(5);
     private const string SitReminderHeroImageRelativePath = "Assets\\sit_down_img.jpg";
     private const string SitReminderTag = "sit-reminder";
     private const string SitReminderGroup = "posture-reminders";
@@ -28,12 +30,18 @@ public sealed class NotifyIconTrayService : ITrayService
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ContextMenuStrip _contextMenu;
     private readonly Forms.ToolStripMenuItem _pauseMenuItem;
+    private readonly Forms.Timer _liveTooltipTimer;
     private readonly object _sitReminderLock = new();
 
     private string? _sitReminderTitle;
     private string? _sitReminderMessage;
     private CancellationTokenSource? _sitReminderReshowCancellation;
+    private DateTimeOffset _liveTooltipUntil;
+    private DateTimeOffset _statusCapturedAt;
+    private ReminderPhase _currentPhase = ReminderPhase.Idle;
+    private TimeSpan _currentRemainingTime = TimeSpan.Zero;
     private bool _keepSitReminderVisible;
+    private bool _hasStatusSnapshot;
     private bool _disposed;
 
     public event EventHandler? OpenRequested;
@@ -69,7 +77,14 @@ public sealed class NotifyIconTrayService : ITrayService
             Visible = false
         };
 
+        _liveTooltipTimer = new Forms.Timer
+        {
+            Interval = (int)TimeSpan.FromSeconds(1).TotalMilliseconds
+        };
+
         _notifyIcon.MouseClick += OnNotifyIconMouseClick;
+        _notifyIcon.MouseMove += OnNotifyIconMouseMove;
+        _liveTooltipTimer.Tick += OnLiveTooltipTimerTick;
     }
 
     public void Initialize()
@@ -157,12 +172,20 @@ public sealed class NotifyIconTrayService : ITrayService
         _pauseMenuItem.Text = isPaused ? "Resume timer" : "Pause timer";
     }
 
-    public void UpdateStatus(string statusText)
+    public void UpdateStatus(ReminderPhase phase, TimeSpan remainingTime)
     {
-        var tooltip = $"Standup Reminder - {statusText}";
-        _notifyIcon.Text = tooltip.Length <= MaxTooltipLength
-            ? tooltip
-            : tooltip[..MaxTooltipLength];
+        var now = DateTimeOffset.Now;
+        var phaseChanged = !_hasStatusSnapshot || _currentPhase != phase;
+
+        _currentPhase = phase;
+        _currentRemainingTime = remainingTime > TimeSpan.Zero ? remainingTime : TimeSpan.Zero;
+        _statusCapturedAt = now;
+        _hasStatusSnapshot = true;
+
+        if (phaseChanged || IsLiveTooltipActive(now))
+        {
+            ApplyTooltip(now);
+        }
     }
 
     public void Dispose()
@@ -174,8 +197,12 @@ public sealed class NotifyIconTrayService : ITrayService
 
         _disposed = true;
         DismissPersistentNotification();
+        _liveTooltipTimer.Stop();
+        _liveTooltipTimer.Tick -= OnLiveTooltipTimerTick;
+        _notifyIcon.MouseMove -= OnNotifyIconMouseMove;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _liveTooltipTimer.Dispose();
         _contextMenu.Dispose();
     }
 
@@ -296,6 +323,107 @@ public sealed class NotifyIconTrayService : ITrayService
         {
             OpenRequested?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    private void OnNotifyIconMouseMove(object? sender, Forms.MouseEventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        var now = DateTimeOffset.Now;
+        _liveTooltipUntil = now + LiveTooltipDuration;
+        ApplyTooltip(now);
+
+        if (!_liveTooltipTimer.Enabled)
+        {
+            _liveTooltipTimer.Start();
+        }
+    }
+
+    private void OnLiveTooltipTimerTick(object? sender, EventArgs e)
+    {
+        _ = sender;
+        _ = e;
+
+        var now = DateTimeOffset.Now;
+        if (!IsLiveTooltipActive(now))
+        {
+            _liveTooltipTimer.Stop();
+        }
+
+        ApplyTooltip(now);
+    }
+
+    private void ApplyTooltip(DateTimeOffset now)
+    {
+        var tooltip = BuildTooltipText(now);
+        _notifyIcon.Text = tooltip.Length <= MaxTooltipLength
+            ? tooltip
+            : tooltip[..MaxTooltipLength];
+    }
+
+    private string BuildTooltipText(DateTimeOffset now)
+    {
+        if (!_hasStatusSnapshot)
+        {
+            return "Standup Reminder";
+        }
+
+        if (!IsLiveTooltipActive(now))
+        {
+            return $"Standup Reminder - {GetPhaseLabel(_currentPhase)}";
+        }
+
+        return $"Standup Reminder - {GetPhaseLabel(_currentPhase)} - {GetRemainingLabel(now)}";
+    }
+
+    private string GetRemainingLabel(DateTimeOffset now)
+    {
+        return _currentPhase switch
+        {
+            ReminderPhase.StandPromptPending => "awaiting action",
+            ReminderPhase.SitPromptPending => "awaiting OK or Extend",
+            ReminderPhase.PausedManually when GetDisplayRemainingTime(now) == TimeSpan.Zero => "paused",
+            _ => $"{GetDisplayRemainingTime(now):hh\\:mm\\:ss} remaining"
+        };
+    }
+
+    private TimeSpan GetDisplayRemainingTime(DateTimeOffset now)
+    {
+        if (!ShouldAgeRemainingTime(_currentPhase))
+        {
+            return _currentRemainingTime;
+        }
+
+        var remaining = _currentRemainingTime - (now - _statusCapturedAt);
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private bool IsLiveTooltipActive(DateTimeOffset now)
+    {
+        return _liveTooltipUntil > now;
+    }
+
+    private static bool ShouldAgeRemainingTime(ReminderPhase phase)
+    {
+        return phase is ReminderPhase.SittingCountdown
+            or ReminderPhase.SnoozedCountdown
+            or ReminderPhase.StandingCountdown;
+    }
+
+    private static string GetPhaseLabel(ReminderPhase phase)
+    {
+        return phase switch
+        {
+            ReminderPhase.SittingCountdown => "Sitting",
+            ReminderPhase.StandingCountdown => "Standing",
+            ReminderPhase.StandPromptPending => "Stand-up confirmation",
+            ReminderPhase.SitPromptPending => "Sit confirmation",
+            ReminderPhase.SnoozedCountdown => "Snoozed",
+            ReminderPhase.PausedManually => "Paused manually",
+            ReminderPhase.PausedForLock => "Paused for lock",
+            _ => "Starting"
+        };
     }
 
     private static Icon LoadApplicationIcon()
