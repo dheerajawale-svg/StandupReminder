@@ -6,7 +6,6 @@ namespace StandupReminder.App.Services;
 public sealed class PostureReminderScheduler : IPostureReminderScheduler
 {
     private static readonly TimeSpan SnoozeDuration = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan SitReminderExtensionDuration = TimeSpan.FromMinutes(5);
 
     private ReminderScheduleOptions _options;
     private AppearanceSettings _appearanceSettings;
@@ -18,6 +17,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     private ReminderPhase _phaseBeforeManualPause = ReminderPhase.Idle;
     private DateTimeOffset _phaseEndsAt;
     private TimeSpan _remainingTime = TimeSpan.Zero;
+    private TimeSpan _lastStartedSittingDuration = TimeSpan.Zero;
     private StandUpReminderWindow? _promptWindow;
     private TimeSpan _pendingRecurringSitExtension = TimeSpan.Zero;
     private bool _hasStarted;
@@ -139,17 +139,17 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         BeginSittingCountdown(isInitial: false);
     }
 
-    public void ExtendSitReminder()
+    public void ExtendSitReminder(TimeSpan extensionDuration)
     {
         if (_phase != ReminderPhase.SitPromptPending)
         {
             return;
         }
 
-        _pendingRecurringSitExtension += SitReminderExtensionDuration;
+        _pendingRecurringSitExtension += extensionDuration;
         _trayService.DismissPersistentNotification();
         _phase = ReminderPhase.StandingCountdown;
-        StartCountdown(SitReminderExtensionDuration);
+        StartCountdown(extensionDuration);
     }
 
     public void UpdateOptions(ReminderScheduleOptions options)
@@ -271,9 +271,14 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void BeginSittingCountdown(bool isInitial)
     {
-        var baseDuration = isInitial ? _options.InitialSit : _options.RecurringSit;
+        var baseDuration = _pendingRecurringSitExtension > TimeSpan.Zero && _lastStartedSittingDuration > TimeSpan.Zero
+            ? _lastStartedSittingDuration
+            : isInitial
+                ? _options.InitialSit
+                : _options.RecurringSit;
         var duration = baseDuration + _pendingRecurringSitExtension;
         _pendingRecurringSitExtension = TimeSpan.Zero;
+        _lastStartedSittingDuration = duration;
 
         _phase = ReminderPhase.SittingCountdown;
         StartCountdown(duration);
@@ -346,7 +351,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void ShowSitPrompt()
     {
-        _trayService.ShowPersistentNotification("Time to sit", "Your standing interval is done. Click OK to start the next sitting timer, or Extend for 5 more standing minutes.");
+        _trayService.ShowPersistentNotification("Time to sit", "Your standing interval is done. Click OK to start the next sitting timer, or choose extra standing minutes and click Extend.");
     }
 
     private void ShowStandPrompt()
@@ -431,11 +436,10 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         AcknowledgeSitReminder();
     }
 
-    private void OnSitReminderExtended(object? sender, EventArgs e)
+    private void OnSitReminderExtended(object? sender, SitReminderExtendedEventArgs e)
     {
         _ = sender;
-        _ = e;
-        ExtendSitReminder();
+        ExtendSitReminder(e.Duration);
     }
 
     private void CaptureRemainingTime()

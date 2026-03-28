@@ -50,7 +50,7 @@ public partial class FirstRunSplashWindow : Window
 
     private void LoadSplashImage()
     {
-        var assetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "wizard-side-dark.bmp");
+        var assetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "splash.png");
 
         if (!File.Exists(assetPath))
         {

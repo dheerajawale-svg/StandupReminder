@@ -26,7 +26,7 @@ public partial class StandUpReminderWindow : Window
 
     public void UpdateStandDuration(TimeSpan standDuration)
     {
-        StandDurationTextBlock.Text = $"Stand up now, stay active for the next {FormatMinutes(standDuration)}, and then the app will notify you when it is time to sit again.";
+        //StandDurationTextBlock.Text = $"Stand up now, stay active for the next {FormatMinutes(standDuration)}, and then the app will notify you when it is time to sit again.";
     }
 
     public void DismissForLock()

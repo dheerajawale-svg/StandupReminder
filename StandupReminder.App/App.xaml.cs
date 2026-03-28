@@ -6,6 +6,7 @@ using StandupReminder.App.Models;
 using StandupReminder.App.Services;
 using StandupReminder.App.ViewModels;
 using Wpf.Ui.Appearance;
+using Forms = System.Windows.Forms;
 
 namespace StandupReminder.App;
 
@@ -38,6 +39,7 @@ public partial class App : System.Windows.Application
 
         ApplyStartupDelay(e.Args);
 
+        Forms.Application.SetColorMode(Forms.SystemColorMode.Dark);
         ToastNotificationManagerCompat.OnActivated += OnToastActivated;
 
         ApplicationThemeManager.ApplySystemTheme();
@@ -73,7 +75,7 @@ public partial class App : System.Windows.Application
         trayService.SettingsRequested += (_, _) => ShowSettingsWindow();
         trayService.ExitRequested += (_, _) => PerformShutdown();
         trayService.SitReminderAcknowledged += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder acknowledged from Windows notification.");
-        trayService.SitReminderExtended += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder extended by 5 minutes from Windows notification. The next sitting timer will also gain 5 minutes.");
+        trayService.SitReminderExtended += (_, args) => _mainWindowViewModel?.LogSystemMessage($"Sit reminder extended by {args.Minutes} minutes from Windows notification. The next sitting timer will also gain {args.Minutes} minutes.");
         trayService.SitReminderBodyActivated += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder body clicked. Waiting for OK or Extend.");
         trayService.SitReminderDismissed += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder dismissed from Windows notification. Re-showing reminder.");
         scheduler.StateChanged += (_, _) => UpdateTrayState(trayService, scheduler);
@@ -181,31 +183,6 @@ public partial class App : System.Windows.Application
         }
     }
 
-    private static string BuildTrayStatus(IPostureReminderScheduler scheduler)
-    {
-        var phaseLabel = scheduler.Phase switch
-        {
-            ReminderPhase.SittingCountdown => "Sitting",
-            ReminderPhase.StandingCountdown => "Standing",
-            ReminderPhase.StandPromptPending => "Stand-up confirmation",
-            ReminderPhase.SitPromptPending => "Sit confirmation",
-            ReminderPhase.SnoozedCountdown => "Snoozed",
-            ReminderPhase.PausedManually => "Paused manually",
-            ReminderPhase.PausedForLock => "Paused for lock",
-            _ => "Starting"
-        };
-
-        var remainingLabel = scheduler.Phase switch
-        {
-            ReminderPhase.StandPromptPending => "awaiting action",
-            ReminderPhase.SitPromptPending => "awaiting OK or Extend",
-            ReminderPhase.PausedManually when scheduler.RemainingTime == TimeSpan.Zero => "paused",
-            _ => $"{scheduler.RemainingTime:hh\\:mm\\:ss} remaining"
-        };
-
-        return $"{phaseLabel} - {remainingLabel}";
-    }
-
     private void ToggleManualPause()
     {
         if (_scheduler is null || _trayService is null)
@@ -228,12 +205,12 @@ public partial class App : System.Windows.Application
     private static void UpdateTrayState(ITrayService trayService, IPostureReminderScheduler scheduler)
     {
         trayService.SetPauseMenuLabel(scheduler.IsManuallyPaused);
-        trayService.UpdateStatus(BuildTrayStatus(scheduler));
+        trayService.UpdateStatus(scheduler.Phase, scheduler.RemainingTime);
     }
 
     private void OnToastActivated(ToastNotificationActivatedEventArgsCompat e)
     {
-        Dispatcher.Invoke(() => _trayService?.HandlePersistentNotificationActivation(e.Argument));
+        Dispatcher.Invoke(() => _trayService?.HandlePersistentNotificationActivation(e.Argument, e.UserInput));
     }
 
     private static void CleanupToastArtifacts()
