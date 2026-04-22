@@ -120,9 +120,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             case ReminderPhase.SittingCountdown:
                 CurrentPhaseTitle = "Sitting";
-                CurrentPhaseDescription = "The sitting countdown is running. The next reminder will ask you to stand up.";
+                CurrentPhaseDescription = "The sitting countdown is running. The next reminder will ask you to stand up, or you can switch to standing early from the tray.";
                 PauseStateText = "Active";
-                TrayHintText = "Close the window to hide it; the reminder loop stays active in the tray.";
+                TrayHintText = "Close the window to hide it; the reminder loop stays active in the tray and can switch modes from there.";
                 break;
 
             case ReminderPhase.StandPromptPending:
@@ -135,17 +135,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             case ReminderPhase.SnoozedCountdown:
                 CurrentPhaseTitle = "Snoozed";
                 CurrentPhaseDescription = scheduler.SnoozedDuration is { } snoozedDuration
-                    ? $"The stand-up reminder was deferred for {FormatMinutes(snoozedDuration)} and will reappear when the snooze countdown ends."
-                    : "The stand-up reminder was deferred and will reappear when the snooze countdown ends.";
+                    ? $"The stand-up reminder was deferred for {FormatMinutes(snoozedDuration)} and will reappear when the snooze countdown ends, unless you switch to standing from the tray first."
+                    : "The stand-up reminder was deferred and will reappear when the snooze countdown ends, unless you switch to standing from the tray first.";
                 PauseStateText = "Snoozed";
-                TrayHintText = "The reminder loop is still active and will prompt you again after the snooze interval.";
+                TrayHintText = "The reminder loop is still active and will prompt you again after the snooze interval unless you switch modes from the tray.";
                 break;
 
             case ReminderPhase.StandingCountdown:
                 CurrentPhaseTitle = "Standing";
-                CurrentPhaseDescription = "The standing interval is running. You will get a sit notification when it finishes.";
+                CurrentPhaseDescription = "The standing interval is running. You will get a sit notification when it finishes, or you can switch back to sitting from the tray.";
                 PauseStateText = "Active";
-                TrayHintText = "When the standing interval ends, the sit reminder must be acknowledged before the next sitting timer starts.";
+                TrayHintText = "When the standing interval ends, the sit reminder must be acknowledged before the next sitting timer starts unless you switch modes from the tray first.";
                 break;
 
             case ReminderPhase.SitPromptPending:

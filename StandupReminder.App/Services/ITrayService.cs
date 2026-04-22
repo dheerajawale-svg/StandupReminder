@@ -9,6 +9,8 @@ public interface ITrayService : IDisposable
 
     event EventHandler? PauseResumeRequested;
 
+    event EventHandler? SwitchModeRequested;
+
     event EventHandler? SettingsRequested;
 
     event EventHandler? ExitRequested;
@@ -32,6 +34,8 @@ public interface ITrayService : IDisposable
     void DismissPersistentNotification();
 
     void SetPauseMenuLabel(bool isPaused);
+
+    void SetSwitchModeMenuState(string label, bool isEnabled);
 
     void UpdateStatus(ReminderPhase phase, TimeSpan remainingTime);
 }

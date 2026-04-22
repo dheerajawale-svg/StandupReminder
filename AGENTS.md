@@ -30,7 +30,7 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - `PostureReminderScheduler` is the core state machine. Keep scheduling behavior centralized there.
 - `MainWindow` owns session monitor hookup and tray-hide behavior.
 - `FirstRunSplashWindow` is shown during startup before the main dashboard remains hidden in tray mode.
-- `NotifyIconTrayService` owns tray icon, menu actions, legacy notify-icon balloon tips, and the sit-down reminder Windows toast.
+- `NotifyIconTrayService` owns tray icon, menu actions, the manual mode-switch action, legacy notify-icon balloon tips, and the sit-down reminder Windows toast.
 - `SettingsWindow` and `SettingsWindowViewModel` handle user-editable reminder intervals and appearance settings.
 - `StandupReminder.WindowsInterop` owns `WindowsSessionEventMonitor` and `RegistryAutoStartRegistrationService`; the app consumes those types rather than implementing that logic locally.
 - Persistence is file-based JSON under `%LocalAppData%\StandupReminder`.
@@ -67,6 +67,12 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
   - `StandupReminder.App/Services/PostureReminderScheduler.cs`
   - `StandupReminder.App/ViewModels/MainWindowViewModel.cs`
   - `StandupReminder.App/App.xaml.cs`
+- When modifying manual mode switching, preserve the current tray-only semantics:
+  - the switch action is enabled only for `SittingCountdown`, `SnoozedCountdown`, and `StandingCountdown`
+  - switching discards the current countdown immediately and starts a fresh full timer for the opposite mode
+  - switching from standing to sitting starts the recurring sitting duration, not the initial sitting duration
+  - switching from standing clears any pending sit-extension carryover so abandoned standing time does not lengthen the next sitting countdown
+  - paused states and confirmation states do not allow manual switching
 - When modifying tray behavior, review both menu actions and tooltip/toast handling in `NotifyIconTrayService`.
 - When modifying session monitoring or autorun registration, review `StandupReminder.WindowsInterop/*` and the `MainWindow` / installer call sites together.
 - When modifying the sit-down reminder notification, preserve the current acknowledgement semantics:
@@ -83,6 +89,8 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - Never generate unit tests for this repository.
 - Never run unit tests for this repository.
 - Prefer build verification and targeted code inspection.
+- If you change the scheduler or tray menu wiring, verify the manual switch item label and enabled state track the current phase correctly.
+- If you change manual switching, verify the old countdown cannot still complete after a switch and trigger the previous mode's prompt.
 - If you change packaging, verify the publish path still matches `Installer/StandupReminder.iss`.
 - If you change notification activation or packaging, verify the `OK` toast action still reaches `App.xaml.cs` and uninstall cleanup still clears notification artifacts.
 - If you change toast assets or packaging, verify `Assets\sit_down_img.jpg` is present next to the built executable and still renders in the sit reminder notification.
@@ -93,6 +101,7 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - A first-run splash window is shown during startup before the app settles into tray mode.
 - Theme resources are loaded from `WPF-UI` dictionaries in `App.xaml`.
 - The tray tooltip text is constrained by the Windows notify icon text limit and is truncated intentionally.
+- The tray includes a manual `Switch mode` action whose label changes by phase and is disabled outside active countdown states.
 - The sit-down reminder is a Windows shell toast, not a custom WPF dialog, so the shell still controls image layout and dismiss behavior; the app compensates by re-showing the toast until `OK` is clicked.
 - Session history shown in the dashboard is trimmed to the last 48 hours.
 - Snooze duration is currently fixed in code at 5 minutes.

@@ -74,6 +74,7 @@ public partial class App : System.Windows.Application
 
         trayService.OpenRequested += (_, _) => _mainWindow.ShowFromTray();
         trayService.PauseResumeRequested += (_, _) => ToggleManualPause();
+        trayService.SwitchModeRequested += (_, _) => SwitchReminderMode();
         trayService.SettingsRequested += (_, _) => ShowSettingsWindow();
         trayService.ExitRequested += (_, _) => PerformShutdown();
         trayService.SitReminderAcknowledged += (_, _) => _mainWindowViewModel?.LogSystemMessage("Sit reminder acknowledged from Windows notification.");
@@ -206,10 +207,49 @@ public partial class App : System.Windows.Application
         }
     }
 
+    private void SwitchReminderMode()
+    {
+        if (_scheduler is null)
+        {
+            return;
+        }
+
+        var previousPhase = _scheduler.Phase;
+        if (!_scheduler.CanSwitchMode)
+        {
+            return;
+        }
+
+        _scheduler.SwitchMode();
+        _mainWindowViewModel?.LogSystemMessage(GetSwitchLogMessage(previousPhase));
+    }
+
     private static void UpdateTrayState(ITrayService trayService, IPostureReminderScheduler scheduler)
     {
         trayService.SetPauseMenuLabel(scheduler.IsManuallyPaused);
+        trayService.SetSwitchModeMenuState(GetSwitchModeMenuLabel(scheduler.Phase), scheduler.CanSwitchMode);
         trayService.UpdateStatus(scheduler.Phase, scheduler.RemainingTime);
+    }
+
+    private static string GetSwitchModeMenuLabel(ReminderPhase phase)
+    {
+        return phase switch
+        {
+            ReminderPhase.SittingCountdown or ReminderPhase.SnoozedCountdown => "Switch to Standing",
+            ReminderPhase.StandingCountdown => "Switch to Sitting",
+            _ => "Switch mode"
+        };
+    }
+
+    private static string GetSwitchLogMessage(ReminderPhase previousPhase)
+    {
+        return previousPhase switch
+        {
+            ReminderPhase.SittingCountdown => "Reminder mode switched from sitting to standing from the tray.",
+            ReminderPhase.SnoozedCountdown => "Reminder mode switched from snoozed sitting to standing from the tray.",
+            ReminderPhase.StandingCountdown => "Reminder mode switched from standing to sitting from the tray.",
+            _ => "Reminder mode switch requested from the tray."
+        };
     }
 
 

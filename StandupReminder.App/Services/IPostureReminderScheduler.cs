@@ -16,11 +16,15 @@ public interface IPostureReminderScheduler : IDisposable
 
     bool IsManuallyPaused { get; }
 
+    bool CanSwitchMode { get; }
+
     void Start();
 
     void PauseTimer();
 
     void ResumeTimer();
+
+    void SwitchMode();
 
     void AcknowledgeSitReminder();
 

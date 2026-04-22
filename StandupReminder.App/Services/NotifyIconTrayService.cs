@@ -30,6 +30,7 @@ public sealed class NotifyIconTrayService : ITrayService
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Forms.ContextMenuStrip _contextMenu;
     private readonly Forms.ToolStripMenuItem _pauseMenuItem;
+    private readonly Forms.ToolStripMenuItem _switchModeMenuItem;
     private readonly Forms.Timer _liveTooltipTimer;
     private readonly object _sitReminderLock = new();
 
@@ -47,6 +48,8 @@ public sealed class NotifyIconTrayService : ITrayService
     public event EventHandler? OpenRequested;
 
     public event EventHandler? PauseResumeRequested;
+
+    public event EventHandler? SwitchModeRequested;
 
     public event EventHandler? SettingsRequested;
 
@@ -66,6 +69,11 @@ public sealed class NotifyIconTrayService : ITrayService
         _contextMenu.Items.Add("Open", null, (_, _) => OpenRequested?.Invoke(this, EventArgs.Empty));
         _pauseMenuItem = new Forms.ToolStripMenuItem("Pause timer", null, (_, _) => PauseResumeRequested?.Invoke(this, EventArgs.Empty));
         _contextMenu.Items.Add(_pauseMenuItem);
+        _switchModeMenuItem = new Forms.ToolStripMenuItem("Switch mode", null, (_, _) => SwitchModeRequested?.Invoke(this, EventArgs.Empty))
+        {
+            Enabled = false
+        };
+        _contextMenu.Items.Add(_switchModeMenuItem);
         _contextMenu.Items.Add("Settings", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
         _contextMenu.Items.Add("Exit", null, (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty));
 
@@ -170,6 +178,12 @@ public sealed class NotifyIconTrayService : ITrayService
     public void SetPauseMenuLabel(bool isPaused)
     {
         _pauseMenuItem.Text = isPaused ? "Resume timer" : "Pause timer";
+    }
+
+    public void SetSwitchModeMenuState(string label, bool isEnabled)
+    {
+        _switchModeMenuItem.Text = label;
+        _switchModeMenuItem.Enabled = isEnabled;
     }
 
     public void UpdateStatus(ReminderPhase phase, TimeSpan remainingTime)

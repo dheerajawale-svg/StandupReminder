@@ -5,6 +5,13 @@ namespace StandupReminder.App.Services;
 
 public sealed class PostureReminderScheduler : IPostureReminderScheduler
 {
+    private enum SittingCountdownStartReason
+    {
+        Initial,
+        Recurring,
+        ManualSwitch
+    }
+
     private ReminderScheduleOptions _options;
     private AppearanceSettings _appearanceSettings;
     private readonly ITrayService _trayService;
@@ -35,6 +42,10 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     public bool IsManuallyPaused => _phase == ReminderPhase.PausedManually;
 
+    public bool CanSwitchMode => _phase is ReminderPhase.SittingCountdown
+        or ReminderPhase.SnoozedCountdown
+        or ReminderPhase.StandingCountdown;
+
     public PostureReminderScheduler(ReminderScheduleOptions options, AppearanceSettings appearanceSettings, ITrayService trayService)
     {
         _options = CloneOptions(options);
@@ -57,7 +68,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         }
 
         _hasStarted = true;
-        BeginSittingCountdown(isInitial: true);
+        BeginSittingCountdown(SittingCountdownStartReason.Initial);
     }
 
     public void PauseTimer()
@@ -130,6 +141,29 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         }
     }
 
+    public void SwitchMode()
+    {
+        if (!CanSwitchMode)
+        {
+            return;
+        }
+
+        _timer.Stop();
+
+        switch (_phase)
+        {
+            case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
+                BeginStandingCountdown();
+                break;
+
+            case ReminderPhase.StandingCountdown:
+                _pendingRecurringSitExtension = TimeSpan.Zero;
+                BeginSittingCountdown(SittingCountdownStartReason.ManualSwitch);
+                break;
+        }
+    }
+
     public void AcknowledgeSitReminder()
     {
         if (_phase != ReminderPhase.SitPromptPending)
@@ -138,7 +172,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         }
 
         _trayService.DismissPersistentNotification();
-        BeginSittingCountdown(isInitial: false);
+        BeginSittingCountdown(SittingCountdownStartReason.Recurring);
     }
 
     public void ExtendSitReminder(TimeSpan extensionDuration)
@@ -286,14 +320,17 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         GC.SuppressFinalize(this);
     }
 
-    private void BeginSittingCountdown(bool isInitial)
+    private void BeginSittingCountdown(SittingCountdownStartReason startReason)
     {
         _snoozedDuration = null;
-        var baseDuration = _pendingRecurringSitExtension > TimeSpan.Zero && _lastStartedSittingDuration > TimeSpan.Zero
-            ? _lastStartedSittingDuration
-            : isInitial
-                ? _options.InitialSit
-                : _options.RecurringSit;
+        var baseDuration = startReason switch
+        {
+            SittingCountdownStartReason.Initial => _options.InitialSit,
+            SittingCountdownStartReason.ManualSwitch => _options.RecurringSit,
+            _ => _pendingRecurringSitExtension > TimeSpan.Zero && _lastStartedSittingDuration > TimeSpan.Zero
+                ? _lastStartedSittingDuration
+                : _options.RecurringSit
+        };
         var duration = baseDuration + _pendingRecurringSitExtension;
         _pendingRecurringSitExtension = TimeSpan.Zero;
         _lastStartedSittingDuration = duration;
