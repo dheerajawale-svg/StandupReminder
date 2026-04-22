@@ -29,15 +29,10 @@
   <ItemGroup>
     <Resource Include="Assets\reminder_17382582.ico" />
     <Resource Include="Assets\reminder_17382582.png" />
+    <Resource Include="Assets\splash.png" />
     <Content Include="Assets\sit_down_img.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Assets\splash.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ItemGroup>

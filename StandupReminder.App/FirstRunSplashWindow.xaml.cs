@@ -1,6 +1,4 @@
-using System.IO;
 using System.Windows;
-using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace StandupReminder.App;
@@ -12,7 +10,6 @@ public partial class FirstRunSplashWindow : Window
     public FirstRunSplashWindow()
     {
         InitializeComponent();
-        LoadSplashImage();
 
         _closeTimer = new DispatcherTimer
         {
@@ -46,24 +43,5 @@ public partial class FirstRunSplashWindow : Window
         _ = sender;
         _ = e;
         Close();
-    }
-
-    private void LoadSplashImage()
-    {
-        var assetPath = Path.Combine(AppContext.BaseDirectory, "Assets", "splash.png");
-
-        if (!File.Exists(assetPath))
-        {
-            return;
-        }
-
-        var image = new BitmapImage();
-        image.BeginInit();
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.UriSource = new Uri(assetPath, UriKind.Absolute);
-        image.EndInit();
-        image.Freeze();
-
-        SplashImage.Source = image;
     }
 }

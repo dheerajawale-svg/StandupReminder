@@ -30,10 +30,11 @@
 
             <Border CornerRadius="20,0,0,20" ClipToBounds="True">
                 <Image x:Name="SplashImage"
+                       Source="pack://application:,,,/Assets/splash.png"
                        Stretch="Fill" />
             </Border>
 
-            <Grid Grid.Column="1" Margin="28,26,28,26">
+            <Grid Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -50,7 +51,7 @@
                            TextWrapping="Wrap"
                            FontSize="15"
                            Foreground="#FFD0D7DE"
-                           Text="StandupReminder will keep running in the system tray and notify you when it is time to switch posture." />                
+                           Text="Keeps running in the system tray" />                
             </Grid>
         </Grid>
     </Border>
