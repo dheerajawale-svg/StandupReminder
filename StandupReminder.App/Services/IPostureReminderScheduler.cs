@@ -18,6 +18,10 @@ public interface IPostureReminderScheduler : IDisposable
 
     bool CanSwitchMode { get; }
 
+    ReminderRuntimeState CaptureRuntimeState();
+
+    void RestoreRuntimeState(ReminderRuntimeState state);
+
     void Start();
 
     void PauseTimer();

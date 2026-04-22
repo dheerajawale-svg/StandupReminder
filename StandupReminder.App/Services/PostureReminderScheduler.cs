@@ -46,6 +46,83 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         or ReminderPhase.SnoozedCountdown
         or ReminderPhase.StandingCountdown;
 
+    public ReminderRuntimeState CaptureRuntimeState()
+    {
+        var now = DateTimeOffset.Now;
+
+        if (_phase is ReminderPhase.SittingCountdown
+            or ReminderPhase.SnoozedCountdown
+            or ReminderPhase.StandingCountdown)
+        {
+            CaptureRemainingTime(now);
+        }
+
+        return new ReminderRuntimeState
+        {
+            SchemaVersion = ReminderRuntimeState.CurrentSchemaVersion,
+            LocalDate = DateOnly.FromDateTime(now.LocalDateTime),
+            Phase = _phase,
+            RemainingTime = _remainingTime,
+            PhaseBeforePause = _phaseBeforePause,
+            PhaseBeforeManualPause = _phaseBeforeManualPause,
+            LastStartedSittingDuration = _lastStartedSittingDuration,
+            PendingRecurringSitExtension = _pendingRecurringSitExtension,
+            SnoozedDuration = _snoozedDuration
+        };
+    }
+
+    public void RestoreRuntimeState(ReminderRuntimeState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        _timer.Stop();
+        _lockedAt = null;
+        _trayService.DismissPersistentNotification();
+        ClosePromptForShutdown();
+
+        _hasStarted = true;
+        _phaseBeforePause = state.PhaseBeforePause;
+        _phaseBeforeManualPause = state.PhaseBeforeManualPause;
+        _lastStartedSittingDuration = state.LastStartedSittingDuration;
+        _pendingRecurringSitExtension = state.PendingRecurringSitExtension;
+        _snoozedDuration = state.SnoozedDuration;
+
+        switch (state.Phase)
+        {
+            case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
+            case ReminderPhase.StandingCountdown:
+                RestoreActiveCountdown(state.Phase, state.RemainingTime, state.SnoozedDuration);
+                break;
+
+            case ReminderPhase.StandPromptPending:
+                _phase = ReminderPhase.StandPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowStandPrompt();
+                break;
+
+            case ReminderPhase.SitPromptPending:
+                _phase = ReminderPhase.SitPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowSitPrompt();
+                break;
+
+            case ReminderPhase.PausedManually:
+                RestorePausedManually(state);
+                break;
+
+            case ReminderPhase.PausedForLock:
+                RestorePausedForLock(state);
+                break;
+
+            default:
+                BeginSittingCountdown(SittingCountdownStartReason.Initial);
+                break;
+        }
+    }
+
     public PostureReminderScheduler(ReminderScheduleOptions options, AppearanceSettings appearanceSettings, ITrayService trayService)
     {
         _options = CloneOptions(options);
@@ -85,7 +162,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             case ReminderPhase.SittingCountdown:
             case ReminderPhase.SnoozedCountdown:
             case ReminderPhase.StandingCountdown:
-                CaptureRemainingTime();
+                CaptureRemainingTime(DateTimeOffset.Now);
                 _timer.Stop();
                 _phase = ReminderPhase.PausedManually;
                 RaiseStateChanged();
@@ -238,7 +315,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             case ReminderPhase.SittingCountdown:
             case ReminderPhase.SnoozedCountdown:
             case ReminderPhase.StandingCountdown:
-                CaptureRemainingTime();
+                CaptureRemainingTime(DateTimeOffset.Now);
                 _timer.Stop();
                 _phase = ReminderPhase.PausedForLock;
                 RaiseStateChanged();
@@ -283,7 +360,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             case ReminderPhase.SnoozedCountdown:
             case ReminderPhase.StandingCountdown:
                 _phase = _phaseBeforePause;
-                CaptureRemainingTime();
+                CaptureRemainingTime(DateTimeOffset.Now);
                 _timer.Start();
                 RaiseStateChanged();
                 break;
@@ -379,7 +456,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             return;
         }
 
-        CaptureRemainingTime();
+        CaptureRemainingTime(DateTimeOffset.Now);
         RaiseStateChanged();
 
         if (_remainingTime <= TimeSpan.Zero)
@@ -504,10 +581,69 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         ExtendSitReminder(e.Duration);
     }
 
-    private void CaptureRemainingTime()
+    private void CaptureRemainingTime(DateTimeOffset now)
     {
-        var remaining = _phaseEndsAt - DateTimeOffset.Now;
+        var remaining = _phaseEndsAt - now;
         _remainingTime = remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    private void RestoreActiveCountdown(ReminderPhase phase, TimeSpan remainingTime, TimeSpan? snoozedDuration)
+    {
+        _phase = phase;
+        _snoozedDuration = phase == ReminderPhase.SnoozedCountdown
+            ? snoozedDuration ?? remainingTime
+            : null;
+        _remainingTime = remainingTime > TimeSpan.Zero ? remainingTime : TimeSpan.Zero;
+
+        if (_remainingTime == TimeSpan.Zero)
+        {
+            CompleteCurrentPhase();
+            return;
+        }
+
+        _phaseEndsAt = DateTimeOffset.Now + _remainingTime;
+        _timer.Start();
+        RaiseStateChanged();
+    }
+
+    private void RestorePausedManually(ReminderRuntimeState state)
+    {
+        _phase = ReminderPhase.PausedManually;
+        _remainingTime = state.RemainingTime > TimeSpan.Zero ? state.RemainingTime : TimeSpan.Zero;
+        _snoozedDuration = state.PhaseBeforeManualPause == ReminderPhase.SnoozedCountdown
+            ? state.SnoozedDuration
+            : null;
+        RaiseStateChanged();
+    }
+
+    private void RestorePausedForLock(ReminderRuntimeState state)
+    {
+        switch (state.PhaseBeforePause)
+        {
+            case ReminderPhase.SittingCountdown:
+            case ReminderPhase.SnoozedCountdown:
+            case ReminderPhase.StandingCountdown:
+                RestoreActiveCountdown(state.PhaseBeforePause, state.RemainingTime, state.SnoozedDuration);
+                break;
+
+            case ReminderPhase.StandPromptPending:
+                _phase = ReminderPhase.StandPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowStandPrompt();
+                break;
+
+            case ReminderPhase.SitPromptPending:
+                _phase = ReminderPhase.SitPromptPending;
+                _remainingTime = TimeSpan.Zero;
+                RaiseStateChanged();
+                ShowSitPrompt();
+                break;
+
+            default:
+                BeginSittingCountdown(SittingCountdownStartReason.Initial);
+                break;
+        }
     }
 
     private void RaiseStateChanged()

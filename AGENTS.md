@@ -10,7 +10,7 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - `WPF-UI` is used for window chrome, theming, and controls.
 - `Microsoft.Toolkit.Uwp.Notifications` is used for Windows app notification toasts.
 - `Microsoft.Extensions.Logging` and `Microsoft.Extensions.Logging.Console` are referenced by the app.
-- The app runs primarily from the system tray, tracks Windows session events, alternates sitting and standing intervals, and persists settings under Local AppData.
+- The app runs primarily from the system tray, tracks Windows session events, alternates sitting and standing intervals, persists settings under Local AppData, and now persists same-day scheduler runtime state across app exit and Windows shutdown/restart.
 
 ## Repository Layout
 - `StandupReminder.slnx`: solution entrypoint with two projects.
@@ -38,11 +38,15 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 ## Persistence and OS Integration
 - Reminder and appearance settings are stored in `%LocalAppData%\StandupReminder\settings.json`.
 - Session event history is stored in `%LocalAppData%\StandupReminder\session-events.json`.
+- Scheduler runtime state is stored in `%LocalAppData%\StandupReminder\runtime-state.json`.
 - Installer startup registration is handled in `Installer/StandupReminder.iss` through `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 - Runtime startup registration is handled by `StandupReminder.WindowsInterop/RegistryAutoStartRegistrationService`; if startup behavior changes, keep installer-time and runtime behavior aligned.
 - Sit-down reminders now use Windows app notifications via `ToastNotificationManagerCompat`, with activation handled in `App.xaml.cs`.
 - Uninstall cleanup for notification artifacts is triggered by running the app with `--cleanup-toast` from the installer uninstall script.
 - The sit reminder toast also loads `StandupReminder.App/Assets/sit_down_img.jpg` from the app output `Assets` folder, so packaging changes must keep that file copied alongside the executable.
+- Runtime-state restore is valid only for the current local calendar day; prior-day runtime state is discarded on the next app launch.
+- Runtime-state persistence is forced on `Application.SessionEnding` and `Application.Exit`, and otherwise checkpointed from scheduler updates with throttling during active countdowns rather than every timer tick.
+- Runtime-state persistence failures are intentionally non-fatal, but they should be logged to the existing logger / in-app system log instead of being silently swallowed.
 
 ## Working Conventions
 - Preserve the existing manual-construction style unless the user explicitly asks for architectural change.
@@ -64,9 +68,17 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - When modifying reminder timing, update both runtime behavior and any user-facing descriptions that mention the interval behavior.
 - When modifying scheduler phases, review:
   - `StandupReminder.App/Models/ReminderPhase.cs`
+  - `StandupReminder.App/Models/ReminderRuntimeState.cs`
   - `StandupReminder.App/Services/PostureReminderScheduler.cs`
   - `StandupReminder.App/ViewModels/MainWindowViewModel.cs`
   - `StandupReminder.App/App.xaml.cs`
+- When modifying runtime-state persistence or restore behavior, keep these rules aligned:
+  - restore is same-day only, based on the local calendar date captured in `runtime-state.json`
+  - restart/exit restore uses frozen remaining time; elapsed downtime is not subtracted
+  - `StandPromptPending` restores by reopening the blocking stand window
+  - `SitPromptPending` restores by re-showing the sit reminder toast
+  - `PausedForLock` must not restore as a waiting-for-unlock state after restart; normalize it into a usable restored state
+  - avoid persisting on every countdown tick; keep checkpointing transition-driven or throttled
 - When modifying manual mode switching, preserve the current tray-only semantics:
   - the switch action is enabled only for `SittingCountdown`, `SnoozedCountdown`, and `StandingCountdown`
   - switching discards the current countdown immediately and starts a fresh full timer for the opposite mode
@@ -95,6 +107,9 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - If you change notification activation or packaging, verify the `OK` toast action still reaches `App.xaml.cs` and uninstall cleanup still clears notification artifacts.
 - If you change toast assets or packaging, verify `Assets\sit_down_img.jpg` is present next to the built executable and still renders in the sit reminder notification.
 - If you change persistence, verify the app still tolerates missing or malformed Local AppData JSON files.
+- If you change runtime-state persistence, verify `runtime-state.json` restores only for the current local date and is discarded on the next day.
+- If you change runtime-state persistence, verify active countdowns are not writing every second and that shutdown/logoff still forces a final checkpoint.
+- If you change runtime-state persistence failure handling, verify save failures surface at least one diagnostic in logs without crashing the app.
 
 ## Known Project-Specific Constraints
 - The app starts in tray mode by default and uses explicit shutdown flow.
@@ -103,6 +118,7 @@ This file applies to the entire repository at `C:\personal\StandupReminder`.
 - The tray tooltip text is constrained by the Windows notify icon text limit and is truncated intentionally.
 - The tray includes a manual `Switch mode` action whose label changes by phase and is disabled outside active countdown states.
 - The sit-down reminder is a Windows shell toast, not a custom WPF dialog, so the shell still controls image layout and dismiss behavior; the app compensates by re-showing the toast until `OK` is clicked.
+- Runtime-state restore uses the current local day boundary only on startup; a continuously running app is not automatically reset at midnight.
 - Session history shown in the dashboard is trimmed to the last 48 hours.
 - Snooze duration is currently fixed in code at 5 minutes.
 
