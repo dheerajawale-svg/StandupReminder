@@ -42,16 +42,18 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <TextBlock FontSize="14"
+                <TextBlock FontSize="24"
                            Foreground="#FF7BA7FF"
-                           Text="StandupReminder" />
+                           FontFamily="Calibri"
+                           Text="StandupReminder" TextAlignment="Center"/>
 
                 <TextBlock Grid.Row="2"
                            Margin="0,16,0,0"
                            TextWrapping="Wrap"
-                           FontSize="15"
+                           FontSize="20"
                            Foreground="#FFD0D7DE"
-                           Text="Keeps running in the system tray" />                
+                           TextAlignment="Center"
+                           Text="Keeps running in system tray" />                
             </Grid>
         </Grid>
     </Border>
