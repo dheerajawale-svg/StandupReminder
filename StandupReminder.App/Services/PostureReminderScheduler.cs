@@ -5,8 +5,6 @@ namespace StandupReminder.App.Services;
 
 public sealed class PostureReminderScheduler : IPostureReminderScheduler
 {
-    private static readonly TimeSpan SnoozeDuration = TimeSpan.FromMinutes(5);
-
     private ReminderScheduleOptions _options;
     private AppearanceSettings _appearanceSettings;
     private readonly ITrayService _trayService;
@@ -21,6 +19,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     private TimeSpan _lastStartedSittingDuration = TimeSpan.Zero;
     private StandUpReminderWindow? _promptWindow;
     private TimeSpan _pendingRecurringSitExtension = TimeSpan.Zero;
+    private TimeSpan? _snoozedDuration;
     private bool _hasStarted;
     private bool _disposed;
 
@@ -29,6 +28,8 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
     public ReminderPhase Phase => _phase;
 
     public TimeSpan RemainingTime => _remainingTime < TimeSpan.Zero ? TimeSpan.Zero : _remainingTime;
+
+    public TimeSpan? SnoozedDuration => _phase == ReminderPhase.SnoozedCountdown ? _snoozedDuration : null;
 
     public bool IsPaused => _phase is ReminderPhase.PausedForLock or ReminderPhase.PausedManually;
 
@@ -160,6 +161,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         if (_phase == ReminderPhase.StandPromptPending && _promptWindow is not null)
         {
             _promptWindow.UpdateStandDuration(_options.Stand);
+            _promptWindow.UpdateSnoozeDuration(_options.Snooze);
         }
         RaiseStateChanged();
     }
@@ -286,6 +288,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void BeginSittingCountdown(bool isInitial)
     {
+        _snoozedDuration = null;
         var baseDuration = _pendingRecurringSitExtension > TimeSpan.Zero && _lastStartedSittingDuration > TimeSpan.Zero
             ? _lastStartedSittingDuration
             : isInitial
@@ -301,14 +304,17 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
 
     private void BeginStandingCountdown()
     {
+        _snoozedDuration = null;
         _phase = ReminderPhase.StandingCountdown;
         StartCountdown(_options.Stand);
     }
 
-    private void BeginSnoozedCountdown()
+    private void BeginSnoozedCountdown(TimeSpan duration)
     {
+        ValidateDuration(duration, nameof(duration));
         _phase = ReminderPhase.SnoozedCountdown;
-        StartCountdown(SnoozeDuration);
+        _snoozedDuration = duration;
+        StartCountdown(duration);
     }
 
     private void StartCountdown(TimeSpan duration)
@@ -382,7 +388,7 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
             return;
         }
 
-        _promptWindow = new StandUpReminderWindow(_options.Stand, _appearanceSettings.WindowBackgroundArgbHex);
+        _promptWindow = new StandUpReminderWindow(_options.Stand, _options.Snooze, _appearanceSettings.WindowBackgroundArgbHex);
         _promptWindow.Confirmed += OnPromptConfirmed;
         _promptWindow.Snoozed += OnPromptSnoozed;
         _promptWindow.Closed += OnPromptClosed;
@@ -432,13 +438,12 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         BeginStandingCountdown();
     }
 
-    private void OnPromptSnoozed(object? sender, EventArgs e)
+    private void OnPromptSnoozed(object? sender, StandReminderSnoozedEventArgs e)
     {
         _ = sender;
-        _ = e;
 
         _promptWindow = null;
-        BeginSnoozedCountdown();
+        BeginSnoozedCountdown(e.Duration);
     }
 
     private void OnPromptClosed(object? sender, EventArgs e)
@@ -478,12 +483,14 @@ public sealed class PostureReminderScheduler : IPostureReminderScheduler
         ValidateDuration(options.InitialSit, nameof(options.InitialSit));
         ValidateDuration(options.RecurringSit, nameof(options.RecurringSit));
         ValidateDuration(options.Stand, nameof(options.Stand));
+        ValidateDuration(options.Snooze, nameof(options.Snooze));
 
         return new ReminderScheduleOptions
         {
             InitialSit = options.InitialSit,
             RecurringSit = options.RecurringSit,
-            Stand = options.Stand
+            Stand = options.Stand,
+            Snooze = options.Snooze
         };
     }
 

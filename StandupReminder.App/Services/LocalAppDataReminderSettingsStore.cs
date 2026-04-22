@@ -53,7 +53,10 @@ public sealed class LocalAppDataReminderSettingsStore : IReminderSettingsStore
         {
             InitialSit = TimeSpan.FromMinutes(data.InitialSitMinutes),
             RecurringSit = TimeSpan.FromMinutes(data.RecurringSitMinutes),
-            Stand = TimeSpan.FromMinutes(data.StandMinutes)
+            Stand = TimeSpan.FromMinutes(data.StandMinutes),
+            Snooze = data.SnoozeMinutes > 0
+                ? TimeSpan.FromMinutes(data.SnoozeMinutes)
+                : TimeSpan.FromMinutes(5)
         };
 
         return true;

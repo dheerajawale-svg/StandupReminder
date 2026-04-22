@@ -73,13 +73,16 @@ internal sealed class LocalAppDataSettingsDocumentStore
 
         public int StandMinutes { get; set; }
 
+        public int SnoozeMinutes { get; set; }
+
         public static ReminderScheduleSection FromOptions(ReminderScheduleOptions options)
         {
             return new ReminderScheduleSection
             {
                 InitialSitMinutes = ToWholeMinutes(options.InitialSit),
                 RecurringSitMinutes = ToWholeMinutes(options.RecurringSit),
-                StandMinutes = ToWholeMinutes(options.Stand)
+                StandMinutes = ToWholeMinutes(options.Stand),
+                SnoozeMinutes = ToWholeMinutes(options.Snooze)
             };
         }
 

@@ -10,6 +10,8 @@ public interface IPostureReminderScheduler : IDisposable
 
     TimeSpan RemainingTime { get; }
 
+    TimeSpan? SnoozedDuration { get; }
+
     bool IsPaused { get; }
 
     bool IsManuallyPaused { get; }

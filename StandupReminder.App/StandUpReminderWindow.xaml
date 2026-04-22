@@ -6,7 +6,7 @@
         Title="Time to stand up"
         Icon="Assets/reminder_17382582.ico"
         Width="460"
-        Height="300"
+        Height="360"
         AllowsTransparency="True"
         Background="Transparent"
         WindowStartupLocation="CenterScreen"
@@ -131,21 +131,52 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <Button Grid.Column="1"
+                <StackPanel Grid.Row="0"
+                            Grid.Column="0"
+                            Margin="0,0,16,0"
+                            VerticalAlignment="Center">
+                    <TextBlock FontSize="14"
+                               FontWeight="SemiBold"
+                               Text="Snooze minutes" />
+                    <TextBox x:Name="SnoozeMinutesTextBox"
+                             Height="36"
+                             Margin="0,6,0,0"
+                             VerticalContentAlignment="Center"
+                             TextChanged="OnSnoozeMinutesTextChanged" />
+                </StackPanel>
+
+                <Button x:Name="SnoozeButton"
+                        Grid.Row="0"
+                        Grid.Column="1"
                         Width="120"
                         Height="40"
-                        Margin="0,0,12,0"
+                        Margin="0,22,12,0"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Click="OnSnoozeClicked"
-                        Content="Snooze 5 min" />
+                        Content="Snooze" />
 
-                <Button Grid.Column="2"
+                <Button Grid.Row="0"
+                        Grid.Column="2"
                         Width="160"
                         Height="40"
+                        Margin="0,22,0,0"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Click="OnConfirmClicked"
                         Content="I stood up" />
+
+                <TextBlock x:Name="SnoozeValidationTextBlock"
+                           Grid.Row="1"
+                           Grid.Column="0"
+                           Grid.ColumnSpan="3"
+                           Margin="0,12,0,0"
+                           Foreground="#FFFFB3B3"
+                           Visibility="Collapsed"
+                           TextWrapping="Wrap" />
             </Grid>
         </Grid>
     </Border>

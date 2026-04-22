@@ -7,4 +7,6 @@ public sealed class ReminderScheduleOptions
     public TimeSpan RecurringSit { get; init; } = TimeSpan.FromMinutes(50);
 
     public TimeSpan Stand { get; init; } = TimeSpan.FromMinutes(20);
+
+    public TimeSpan Snooze { get; init; } = TimeSpan.FromMinutes(5);
 }

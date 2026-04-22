@@ -127,14 +127,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
             case ReminderPhase.StandPromptPending:
                 CurrentPhaseTitle = "Stand-Up Confirmation";
-                CurrentPhaseDescription = "A blocking reminder is waiting for you to confirm that you stood up or snooze for 5 minutes.";
+                CurrentPhaseDescription = "A blocking reminder is waiting for you to confirm that you stood up or choose a snooze duration.";
                 PauseStateText = "Awaiting confirmation";
                 TrayHintText = "The stand-up popup stays on screen until you confirm or snooze it.";
                 break;
 
             case ReminderPhase.SnoozedCountdown:
                 CurrentPhaseTitle = "Snoozed";
-                CurrentPhaseDescription = "The stand-up reminder was deferred for 5 minutes and will reappear when the snooze countdown ends.";
+                CurrentPhaseDescription = scheduler.SnoozedDuration is { } snoozedDuration
+                    ? $"The stand-up reminder was deferred for {FormatMinutes(snoozedDuration)} and will reappear when the snooze countdown ends."
+                    : "The stand-up reminder was deferred and will reappear when the snooze countdown ends.";
                 PauseStateText = "Snoozed";
                 TrayHintText = "The reminder loop is still active and will prompt you again after the snooze interval.";
                 break;
@@ -192,5 +194,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static string FormatMinutes(TimeSpan duration)
+    {
+        var wholeMinutes = Math.Max(1, (int)Math.Round(duration.TotalMinutes, MidpointRounding.AwayFromZero));
+        return wholeMinutes == 1 ? "1 minute" : $"{wholeMinutes} minutes";
     }
 }

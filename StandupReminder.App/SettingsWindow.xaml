@@ -5,9 +5,9 @@
                  Title="Reminder settings"
                  Icon="Assets/reminder_17382582.ico"
                  Width="520"
-                 Height="760"
+                 Height="820"
                  MinWidth="520"
-                 MinHeight="700"
+                 MinHeight="760"
                  WindowStartupLocation="CenterScreen"
                  ResizeMode="NoResize"
                  ShowInTaskbar="False"
@@ -44,6 +44,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0">
@@ -77,6 +78,17 @@
                                        Text="Used after you confirm the stand-up reminder." />
                             <TextBox Height="36"
                                      Text="{Binding StandMinutes, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="3" Margin="0,18,0,0">
+                            <TextBlock FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Text="Snooze interval (minutes)" />
+                            <TextBlock Margin="0,4,0,8"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="Used as the default value in the stand-up popup before you snooze." />
+                            <TextBox Height="36"
+                                     Text="{Binding SnoozeMinutes, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </Grid>
                 </Border>

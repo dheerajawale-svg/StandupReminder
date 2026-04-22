@@ -10,6 +10,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged
     private string _initialSitMinutes;
     private string _recurringSitMinutes;
     private string _standMinutes;
+    private string _snoozeMinutes;
     private string _windowBackgroundArgbHex;
     private string _errorMessage = string.Empty;
 
@@ -20,6 +21,7 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged
         _initialSitMinutes = ToWholeMinutes(options.InitialSit).ToString(CultureInfo.InvariantCulture);
         _recurringSitMinutes = ToWholeMinutes(options.RecurringSit).ToString(CultureInfo.InvariantCulture);
         _standMinutes = ToWholeMinutes(options.Stand).ToString(CultureInfo.InvariantCulture);
+        _snoozeMinutes = ToWholeMinutes(options.Snooze).ToString(CultureInfo.InvariantCulture);
         _windowBackgroundArgbHex = appearanceSettings.WindowBackgroundArgbHex;
     }
 
@@ -39,6 +41,12 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged
     {
         get => _standMinutes;
         set => SetProperty(ref _standMinutes, value);
+    }
+
+    public string SnoozeMinutes
+    {
+        get => _snoozeMinutes;
+        set => SetProperty(ref _snoozeMinutes, value);
     }
 
     public string WindowBackgroundArgbHex
@@ -73,11 +81,17 @@ public sealed class SettingsWindowViewModel : INotifyPropertyChanged
             return false;
         }
 
+        if (!TryParseMinutes(SnoozeMinutes, "Snooze interval", out var snoozeMinutes))
+        {
+            return false;
+        }
+
         options = new ReminderScheduleOptions
         {
             InitialSit = TimeSpan.FromMinutes(initialSitMinutes),
             RecurringSit = TimeSpan.FromMinutes(recurringSitMinutes),
-            Stand = TimeSpan.FromMinutes(standMinutes)
+            Stand = TimeSpan.FromMinutes(standMinutes),
+            Snooze = TimeSpan.FromMinutes(snoozeMinutes)
         };
 
         return true;
